@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "lib": ["es2020"],
+    "types": ["node"],
+    "module": "commonjs",
+    "noImplicitAny": true,
+    "removeComments": true,
+    "strictNullChecks": true,
+    "strict": true,
+    "preserveConstEnums": true,
+    "declaration": true,
+    "outDir": "./dist",
+    "rootDir": "./",
+    "target": "es2020",
+    "sourceMap": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true
+  },
+  "include": [
+    "credentials/**/*.ts",
+    "nodes/**/*.ts",
+    "nodes/**/*.json"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.spec.ts"
+  ]
+} 

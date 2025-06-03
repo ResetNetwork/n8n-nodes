@@ -1,0 +1,176 @@
+{
+  "name": "Contextual Document Loader Example",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "text": "ACME Corporation Q2 2023 Financial Report\n\nExecutive Summary\nACME Corporation experienced strong growth in Q2 2023, driven by increased demand for our cloud services and enterprise solutions.\n\nRevenue Performance\nThe company's revenue grew by 3% over the previous quarter, reaching $314 million. This growth was primarily attributed to our SaaS offerings, which saw a 15% increase in subscriptions.\n\nProduct Performance\nOur flagship product, ACME Cloud Suite, continued to dominate the market with a 42% market share. The newly launched ACME Analytics platform exceeded expectations, contributing $23 million in revenue.\n\nRegional Breakdown\nNorth America remained our strongest market, accounting for 55% of total revenue. European markets showed promising growth at 12% quarter-over-quarter.\n\nFuture Outlook\nWe expect continued growth in Q3 2023, with projected revenue between $325-335 million. Investment in AI capabilities and expansion into Asian markets are key priorities."
+      },
+      "id": "set-document",
+      "name": "Set Document",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4",
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "id": "openai-chat",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [650, 200],
+      "credentials": {
+        "openAiApi": {
+          "id": "1",
+          "name": "OpenAI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chunkSize": 200,
+        "chunkOverlap": 50,
+        "keepSeparator": false
+      },
+      "id": "text-splitter",
+      "name": "Recursive Character Text Splitter",
+      "type": "@n8n/n8n-nodes-langchain.textSplitterRecursiveCharacterTextSplitter",
+      "typeVersion": 1,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "contextPrompt": "Provide a brief context about what aspect of ACME Corporation's Q2 2023 financial report this chunk discusses.",
+        "options": {
+          "batchSize": 5,
+          "contextPrefix": "Context: ",
+          "contextSeparator": "\n\n",
+          "metadata": "{\"reportType\": \"financial\", \"company\": \"ACME Corporation\", \"period\": \"Q2 2023\"}"
+        }
+      },
+      "id": "contextual-loader",
+      "name": "Contextual Document Loader",
+      "type": "n8n-nodes-contextual-document-loader.contextualDocumentLoader",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "in-memory-store",
+      "name": "In-Memory Vector Store",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreInMemory",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "model": "text-embedding-3-small",
+        "options": {}
+      },
+      "id": "openai-embeddings",
+      "name": "OpenAI Embeddings",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1,
+      "position": [1050, 400],
+      "credentials": {
+        "openAiApi": {
+          "id": "1",
+          "name": "OpenAI"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Document": {
+      "main": [
+        [
+          {
+            "node": "Contextual Document Loader",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Contextual Document Loader",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recursive Character Text Splitter": {
+      "ai_textSplitter": [
+        [
+          {
+            "node": "Contextual Document Loader",
+            "type": "ai_textSplitter",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Contextual Document Loader": {
+      "ai_document": [
+        [
+          {
+            "node": "In-Memory Vector Store",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Embeddings": {
+      "ai_embedding": [
+        [
+          {
+            "node": "In-Memory Vector Store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "templateId": "contextual-document-loader-example"
+  },
+  "pinData": {},
+  "versionId": "1",
+  "triggerCount": 0,
+  "tags": []
+} 

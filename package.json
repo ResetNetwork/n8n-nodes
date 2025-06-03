@@ -1,0 +1,53 @@
+{
+  "name": "n8n-nodes-collection",
+  "version": "1.0.0",
+  "description": "A collection of custom n8n nodes for enhanced document processing, text splitting, and embeddings generation",
+  "private": true,
+  "workspaces": [
+    "n8n-nodes-*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "dev": "npm run dev --workspaces",
+    "lint": "npm run lint --workspaces",
+    "lintfix": "npm run lintfix --workspaces",
+    "format": "npm run format --workspaces",
+    "setup-local": "./setup-local.sh",
+    "start-n8n": "./start-n8n.sh",
+    "dev-watch": "./dev-watch.sh",
+    "cleanup-local": "./cleanup-local.sh",
+    "publish-all": "npm publish --workspaces --access public"
+  },
+  "keywords": [
+    "n8n",
+    "n8n-community-node-package",
+    "document-processing",
+    "text-splitting",
+    "embeddings",
+    "ai",
+    "langchain"
+  ],
+  "author": {
+    "name": "Reset Network",
+    "url": "https://github.com/ResetNetwork"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ResetNetwork/n8n-nodes.git"
+  },
+  "homepage": "https://github.com/ResetNetwork/n8n-nodes",
+  "bugs": {
+    "url": "https://github.com/ResetNetwork/n8n-nodes/issues"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.3",
+    "prettier": "^3.2.4",
+    "eslint": "^8.56.0"
+  }
+} 

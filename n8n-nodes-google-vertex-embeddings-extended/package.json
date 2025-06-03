@@ -1,0 +1,67 @@
+{
+  "name": "n8n-nodes-google-vertex-embeddings-extended",
+  "version": "0.3.2",
+  "description": "n8n community sub-node for Google Vertex AI Embeddings with output dimensions support - use with vector stores",
+  "keywords": [
+    "n8n-community-node-package",
+    "google",
+    "vertex",
+    "embeddings",
+    "ai",
+    "langchain",
+    "vector-store",
+    "sub-node"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/ResetNetwork/n8n-nodes#readme",
+  "author": {
+    "name": "Reset Network",
+    "url": "https://github.com/ResetNetwork"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ResetNetwork/n8n-nodes.git",
+    "directory": "n8n-nodes-google-vertex-embeddings-extended"
+  },
+  "bugs": {
+    "url": "https://github.com/ResetNetwork/n8n-nodes/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc && mkdir -p dist/nodes/embeddings/EmbeddingsGoogleVertexExtended && cp -r nodes/embeddings/EmbeddingsGoogleVertexExtended/*.svg dist/nodes/embeddings/EmbeddingsGoogleVertexExtended/ 2>/dev/null || true",
+    "dev": "tsc --watch",
+    "format": "prettier nodes --write",
+    "lint": "eslint nodes --ext .ts",
+    "lintfix": "eslint nodes --ext .ts --fix",
+    "prepublishOnly": "npm run build && npm run lint -c .eslintrc.prepublish.json nodes"
+  },
+  "files": [
+    "dist"
+  ],
+  "n8n": {
+    "n8nNodesApiVersion": 1,
+    "nodes": [
+      "dist/nodes/embeddings/EmbeddingsGoogleVertexExtended/EmbeddingsGoogleVertexExtended.node.js"
+    ]
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.11.0",
+    "@typescript-eslint/parser": "^6.19.0",
+    "eslint": "^8.56.0",
+    "eslint-plugin-n8n-nodes-base": "^1.16.1",
+    "n8n-workflow": "^1.25.1",
+    "prettier": "^3.2.4",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "@langchain/google-vertexai": "^0.0.21",
+    "google-auth-library": "^9.6.3"
+  },
+  "peerDependencies": {
+    "n8n-workflow": "^1.25.1"
+  }
+}

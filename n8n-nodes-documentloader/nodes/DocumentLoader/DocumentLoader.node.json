@@ -1,0 +1,16 @@
+{
+  "node": "n8n-nodes-documentloader.documentLoader",
+  "nodeVersion": "1.0",
+  "codexVersion": "1.0",
+  "categories": ["AI"],
+  "subcategories": {
+    "AI": ["Document Loaders"]
+  },
+  "resources": {
+    "primaryDocumentation": [
+      {
+        "url": "https://docs.n8n.io/integrations/builtin/cluster-nodes/sub-nodes/n8n-nodes-langchain.documentloader/"
+      }
+    ]
+  }
+} 
