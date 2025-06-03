@@ -1,5 +1,11 @@
 This is a scratch folder for creating PoC versions of the packaged nodes within an n8n LangChain Code Node
 
+Milestones:
+1. Create a working document loader via a LangChain Code Node that replicates thee functionality of the official Defualt Data/Document Loader
+2. Add a new input that generates context from the received chunk and sends the context + chunk to vector store
+3. Take what we know and create a working standalone n8n-nodes-contextual-document-loader 
+4. Do the same for the n8n-nodes-semantic-text-splitter
+
 Resources:
 Useful n8n documentation
 https://docs.n8n.io/integrations/builtin/cluster-nodes/root-nodes/n8n-nodes-langchain.code/
