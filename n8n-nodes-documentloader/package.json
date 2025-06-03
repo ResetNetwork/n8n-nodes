@@ -30,10 +30,10 @@
   "scripts": {
     "build": "tsc && gulp build:icons",
     "dev": "tsc --watch",
-    "format": "prettier nodes credentials --write",
-    "lint": "eslint nodes credentials package.json",
-    "lintfix": "eslint nodes credentials package.json --fix",
-    "prepublishOnly": "npm run build && npm run lint -c .eslintrc.prepublish.js nodes credentials package.json"
+    "format": "prettier nodes utils --write",
+    "lint": "eslint nodes --ext .ts && eslint utils --ext .ts",
+    "lintfix": "eslint nodes --ext .ts --fix && eslint utils --ext .ts --fix",
+    "prepublishOnly": "npm run build && npm run lint"
   },
   "files": [
     "dist"
