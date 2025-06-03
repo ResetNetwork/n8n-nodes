@@ -1,0 +1,47 @@
+This is a scratch folder for creating PoC versions of the packaged nodes within an n8n LangChain Code Node
+
+Resources:
+Useful n8n documentation
+https://docs.n8n.io/integrations/builtin/cluster-nodes/root-nodes/n8n-nodes-langchain.code/
+
+Userful official reference code
+https://github.com/n8n-io/n8n/blob/3f9a271e69c0ab6ec1a4f35f57e736e566877adb/packages/%40n8n/nodes-langchain/nodes/document_loaders/DocumentDefaultDataLoader/
+https://github.com/n8n-io/n8n/blob/3f9a271e69c0ab6ec1a4f35f57e736e566877adb/packages/%40n8n/nodes-langchain/nodes/vector_store/VectorStoreInMemory/
+https://github.com/n8n-io/n8n/tree/3f9a271e69c0ab6ec1a4f35f57e736e566877adb/packages/%40n8n/nodes-langchain/nodes/text_splitters/TextSplitterCharacterTextSplitter
+
+3rd party reference code
+https://github.com/bitovi/n8n-nodes-semantic-text-splitter
+
+The bigger system picture
+
+Contextual adaptive hybrid reasoning retrieval  
+
+1. Original document attribute and tag extraction
+	1. LLM-generated attributes and tags to facilitate vector database filtering
+	2. Base attributes: title, description, type, updated, created, authors, source, content id, link
+	3. Content tags: entities, keywords, topics, categories
+2. [Semantic double merging chunking](https://docs.llamaindex.ai/en/stable/examples/node_parsers/semantic_double_merging_chunking/) of original documents
+	1. Allow for large dynamic chunk sizes (5000 to 7000)
+3. Contextual Retrieval [Prepossessing](https://www.anthropic.com/news/contextual-retrieval)
+	2. Succinct LLM-generated context to situate this chunk within the overall document to improve search retrieval
+	3. Context + Chunk = Text for vectoring
+4. Sparse embeddings for full-text search (searching by keyword)
+	1. BM25 or TF-IDF vectors 
+5. Dense embeddings for semantic search (searching by meaning) 
+	2. High-dimensional embeddings and context length model
+	3. A Matryoshka Representation Learning (MRL) model that allows for truncating the original dimensions
+	4. Use the [gemini-embedding-exp-03-07](https://developers.googleblog.com/en/gemini-embedding-text-model-now-available-gemini-api/) model or text-embedding-3-large
+6. Implement an [Adaptive Retrieval](https://supabase.com/blog/matryoshka-embeddings) and  [Hybrid Search](https://supabase.com/docs/guides/ai/hybrid-search) query function(s) to merge keyword search and semantic search results with metadata filtering
+	1. High-dimensional embedding (3072) that contains meaningful sub-vectors (512) for high accuracy and performance query responses of dense vectors
+	2. Query for both dense and sparse vector matches, ranking them both and merging results
+	3. All filtering of results based on metadata filters (e.g. PDFs and emails from this year)
+7. Implement a re-rank model to filter database query results
+	1. [Cohere Rerank](https://cohere.com/rerank)
+8. Give agents the ability to :
+	1. Know or retrieve available tags/attributes and known values (within prompts, tool calls, or sub-agent)
+	2. Assess query complexity to:
+		1. Make an initial query with optional metadata filtering
+		2. Initiate a [Sub Question Query Engine](https://docs.llamaindex.ai/en/stable/examples/query_engine/sub_question_query_engine/#sub-question-query-engine) workflow
+		3. Delegate research to sub-agents as available
+	3. Retrieve an entire document's contents
+	4. Reiterate searches for deeper reasoning, insights, synthesis, and response.
