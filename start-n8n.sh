@@ -32,6 +32,7 @@ cd - > /dev/null
 # Enable debug logging
 export N8N_LOG_LEVEL=debug
 export N8N_LOG_OUTPUT=console
+export CODE_ENABLE_STDOUT=true
 
 echo "📝 Starting n8n with debug logging enabled..."
 echo "   URL: http://localhost:5678"
