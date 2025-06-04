@@ -77,6 +77,8 @@ build/Release
 .env.test.local
 .env.production.local
 .env.local
+.direnv/
+.envrc
 
 # parcel-bundler cache (https://parceljs.org/)
 .cache
