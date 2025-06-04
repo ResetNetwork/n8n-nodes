@@ -21,6 +21,9 @@
       devShells = forEachSupportedSystem ({ pkgs }: {
         default = pkgs.mkShell {
           packages = with pkgs; [ nodejs ];
+          shellHook = ''
+            export PATH="$PWD/node_modules/.bin:$PATH"
+          '';
         };
       });
     };
