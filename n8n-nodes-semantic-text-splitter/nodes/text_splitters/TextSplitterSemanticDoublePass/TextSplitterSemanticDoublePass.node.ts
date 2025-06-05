@@ -111,7 +111,7 @@ class SemanticDoublePassMergingSplitter extends TextSplitter {
 		return chunks;
 	}
 
-	async splitDocuments(documents: Document[]): Promise<Document[]> {
+	override async splitDocuments(documents: Document[]): Promise<Document[]> {
 		const splitDocuments: Document[] = [];
 
 		for (const document of documents) {

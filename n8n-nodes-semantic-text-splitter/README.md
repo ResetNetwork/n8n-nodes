@@ -1,4 +1,5 @@
-# n8n-nodes-semantic-text-splitter
+# @resettech/n8n-nodes-semantic-text-splitter
+
 
 This is an n8n community node that provides a Semantic Double-Pass Merging text splitter for advanced document chunking in AI workflows.
 
@@ -26,7 +27,7 @@ This approach results in more coherent and contextually meaningful chunks compar
 
 1. Go to **Settings** > **Community Nodes**
 2. Select **Install**
-3. Enter `n8n-nodes-semantic-text-splitter` in the search field
+3. Enter `@resettech/n8n-nodes-semantic-text-splitter` in the search field
 4. Select **Install**
 
 ### Manual Installation
@@ -37,11 +38,11 @@ This approach results in more coherent and contextually meaningful chunks compar
    ```
 2. Clone this repository:
    ```bash
-   git clone https://github.com/yourusername/n8n-nodes-semantic-text-splitter.git
+   git clone https://github.com/ResetNetwork/n8n-nodes.git
+   cd n8n-nodes/n8n-nodes-semantic-text-splitter
    ```
 3. Install dependencies:
    ```bash
-   cd n8n-nodes-semantic-text-splitter
    npm install
    ```
 4. Build the node:
@@ -121,12 +122,12 @@ npm run format
 
 ## Author
 
-Your Name - [your.email@example.com](mailto:your.email@example.com)
+Reset Network - [https://github.com/ResetNetwork](https://github.com/ResetNetwork)
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! Please feel free to submit a Pull Request to the [Reset Network n8n-nodes repository](https://github.com/ResetNetwork/n8n-nodes).
 
 ## Support
 
-For issues and feature requests, please use the [GitHub issues page](https://github.com/yourusername/n8n-nodes-semantic-text-splitter/issues). 
+For issues and feature requests, please use the [GitHub issues page](https://github.com/ResetNetwork/n8n-nodes/issues). 
