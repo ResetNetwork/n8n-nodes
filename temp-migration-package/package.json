@@ -1,0 +1,29 @@
+{
+  "name": "n8n-nodes-semantic-text-splitter",
+  "version": "0.3.0",
+  "description": "⚠️ MOVED: This package has been moved to @resettech/n8n-nodes-semantic-text-splitter",
+  "keywords": [
+    "n8n-community-node-package",
+    "deprecated",
+    "moved"
+  ],
+  "license": "MIT",
+  "homepage": "https://www.npmjs.com/package/@resettech/n8n-nodes-semantic-text-splitter",
+  "author": {
+    "name": "Reset Network",
+    "url": "https://github.com/ResetNetwork"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ResetNetwork/n8n-nodes.git",
+    "directory": "n8n-nodes-semantic-text-splitter"
+  },
+  "bugs": {
+    "url": "https://github.com/ResetNetwork/n8n-nodes/issues"
+  },
+  "main": "index.js",
+  "scripts": {
+    "postinstall": "echo '\n⚠️  PACKAGE MOVED ⚠️\nThis package has been moved to @resettech/n8n-nodes-semantic-text-splitter\nPlease update your installation:\n  npm uninstall n8n-nodes-semantic-text-splitter\n  npm install @resettech/n8n-nodes-semantic-text-splitter\n'"
+  },
+  "deprecated": true
+} 

@@ -1,5 +1,4 @@
-# @resettech/n8n-nodes-semantic-text-splitter
-
+# n8n-nodes-semantic-text-splitter
 
 This is an n8n community node that provides a Semantic Double-Pass Merging text splitter for advanced document chunking in AI workflows.
 
@@ -27,7 +26,7 @@ This approach results in more coherent and contextually meaningful chunks compar
 
 1. Go to **Settings** > **Community Nodes**
 2. Select **Install**
-3. Enter `@resettech/n8n-nodes-semantic-text-splitter` in the search field
+3. Enter `n8n-nodes-semantic-text-splitter` in the search field
 4. Select **Install**
 
 ### Manual Installation
