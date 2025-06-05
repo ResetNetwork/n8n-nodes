@@ -48,9 +48,39 @@ class SemanticDoublePassMergingSplitter extends TextSplitter {
 	}
 
 	async splitText(text: string): Promise<string[]> {
+		// Handle empty or whitespace-only text
+		if (!text || text.trim().length === 0) return [];
+
 		// Split text into sentences
 		const sentences = this._splitTextIntoSentences(text);
 		if (sentences.length === 0) return [];
+		
+		// Handle single sentence case
+		if (sentences.length === 1) {
+			const singleSentence = sentences[0]!.trim();
+			if (!singleSentence) return [];
+			
+			// Apply size constraints to single sentence
+			if (this.maxChunkSize && singleSentence.length > this.maxChunkSize) {
+				// Split by words if sentence is too long
+				const words = singleSentence.split(/\s+/);
+				const chunks: string[] = [];
+				let currentChunk = '';
+				
+				for (const word of words) {
+					if (currentChunk.length + word.length + 1 <= this.maxChunkSize) {
+						currentChunk = currentChunk ? currentChunk + ' ' + word : word;
+					} else {
+						if (currentChunk) chunks.push(currentChunk);
+						currentChunk = word;
+					}
+				}
+				if (currentChunk) chunks.push(currentChunk);
+				return chunks;
+			}
+			
+			return [singleSentence];
+		}
 
 		// Combine sentences for embedding
 		const combinedSentences = await this._combineSentences(sentences);
@@ -60,6 +90,11 @@ class SemanticDoublePassMergingSplitter extends TextSplitter {
 
 		// Calculate distances between consecutive embeddings
 		const distances = this._calculateDistances(embeddings);
+
+		// Handle case where we have no distances (shouldn't happen with multiple sentences, but safety check)
+		if (distances.length === 0) {
+			return sentences.map(s => s.trim()).filter(s => s.length > 0);
+		}
 
 		// Determine breakpoints based on threshold
 		const breakpoints = this._calculateBreakpoints(distances);
@@ -76,7 +111,7 @@ class SemanticDoublePassMergingSplitter extends TextSplitter {
 		return chunks;
 	}
 
-	override async splitDocuments(documents: Document[]): Promise<Document[]> {
+	async splitDocuments(documents: Document[]): Promise<Document[]> {
 		const splitDocuments: Document[] = [];
 
 		for (const document of documents) {
@@ -132,8 +167,16 @@ class SemanticDoublePassMergingSplitter extends TextSplitter {
 		const dotProduct = vec1.reduce((sum, val, i) => sum + val * vec2[i]!, 0);
 		const magnitude1 = Math.sqrt(vec1.reduce((sum, val) => sum + val * val, 0));
 		const magnitude2 = Math.sqrt(vec2.reduce((sum, val) => sum + val * val, 0));
+		
+		// Handle edge cases where vectors might have zero magnitude
+		if (magnitude1 === 0 || magnitude2 === 0) {
+			return 1; // Maximum distance for zero vectors
+		}
+		
 		const similarity = dotProduct / (magnitude1 * magnitude2);
-		return 1 - similarity;
+		// Clamp similarity to [-1, 1] to handle floating point errors
+		const clampedSimilarity = Math.max(-1, Math.min(1, similarity));
+		return 1 - clampedSimilarity;
 	}
 
 	private _calculateBreakpoints(distances: number[]): number[] {
@@ -155,7 +198,9 @@ class SemanticDoublePassMergingSplitter extends TextSplitter {
 					const percentile = 0.95;
 					const sortedDist = [...distances].sort((a, b) => a - b);
 					const index = Math.floor(sortedDist.length * percentile);
-					threshold = sortedDist[index]!;
+					// Ensure index is within bounds
+					const safeIndex = Math.min(index, sortedDist.length - 1);
+					threshold = sortedDist[safeIndex]!;
 					break;
 				case 'standard_deviation':
 					const mean = distances.reduce((a, b) => a + b, 0) / distances.length;
@@ -167,8 +212,11 @@ class SemanticDoublePassMergingSplitter extends TextSplitter {
 					const sorted = [...distances].sort((a, b) => a - b);
 					const q1Index = Math.floor(sorted.length * 0.25);
 					const q3Index = Math.floor(sorted.length * 0.75);
-					const q1 = sorted[q1Index]!;
-					const q3 = sorted[q3Index]!;
+					// Ensure indices are within bounds
+					const safeQ1Index = Math.min(q1Index, sorted.length - 1);
+					const safeQ3Index = Math.min(q3Index, sorted.length - 1);
+					const q1 = sorted[safeQ1Index]!;
+					const q3 = sorted[safeQ3Index]!;
 					const iqr = q3 - q1;
 					threshold = q3 + 1.5 * iqr;
 					break;
@@ -178,8 +226,14 @@ class SemanticDoublePassMergingSplitter extends TextSplitter {
 					for (let i = 1; i < distances.length; i++) {
 						gradients.push(Math.abs(distances[i]! - distances[i - 1]!));
 					}
-					const maxGradientIndex = gradients.indexOf(Math.max(...gradients));
-					threshold = distances[maxGradientIndex + 1]!;
+					if (gradients.length > 0) {
+						const maxGradientIndex = gradients.indexOf(Math.max(...gradients));
+						// Ensure we don't go out of bounds
+						const thresholdIndex = Math.min(maxGradientIndex + 1, distances.length - 1);
+						threshold = distances[thresholdIndex]!;
+					} else {
+						threshold = 0.5; // Fallback for single distance
+					}
 					break;
 				default:
 					threshold = 0.5;
@@ -229,6 +283,7 @@ class SemanticDoublePassMergingSplitter extends TextSplitter {
 		const mergedChunks: string[] = [];
 		let currentChunk = chunks[0]!;
 		let currentEmbedding = chunkEmbeddings[0]!;
+		let needsEmbeddingUpdate = false;
 
 		for (let i = 1; i < chunks.length; i++) {
 			const similarity = 1 - this._cosineDistance(currentEmbedding, chunkEmbeddings[i]!);
@@ -236,10 +291,15 @@ class SemanticDoublePassMergingSplitter extends TextSplitter {
 			if (similarity >= this.secondPassThreshold) {
 				// Merge chunks
 				currentChunk = currentChunk + ' ' + chunks[i];
-				// Recalculate embedding for merged chunk
-				const [newEmbedding] = await this.embeddings.embedDocuments([currentChunk]);
-				currentEmbedding = newEmbedding!;
+				needsEmbeddingUpdate = true;
 			} else {
+				// If we merged chunks, recalculate embedding for the final merged chunk
+				if (needsEmbeddingUpdate) {
+					const [newEmbedding] = await this.embeddings.embedDocuments([currentChunk]);
+					currentEmbedding = newEmbedding!;
+					needsEmbeddingUpdate = false;
+				}
+				
 				// Save current chunk and start new one
 				mergedChunks.push(currentChunk);
 				currentChunk = chunks[i]!;
@@ -247,7 +307,11 @@ class SemanticDoublePassMergingSplitter extends TextSplitter {
 			}
 		}
 
-		// Add the last chunk
+		// Add the last chunk (recalculate embedding if needed)
+		if (needsEmbeddingUpdate) {
+			const [newEmbedding] = await this.embeddings.embedDocuments([currentChunk]);
+			currentEmbedding = newEmbedding!;
+		}
 		mergedChunks.push(currentChunk);
 
 		return mergedChunks;
@@ -271,20 +335,32 @@ class SemanticDoublePassMergingSplitter extends TextSplitter {
 					if (tempChunk.length + sentence.length + 1 <= this.maxChunkSize) {
 						tempChunk = tempChunk ? tempChunk + ' ' + sentence : sentence;
 					} else {
+						// Save current tempChunk if it meets minimum size
 						if (tempChunk && (!this.minChunkSize || tempChunk.length >= this.minChunkSize)) {
 							constrainedChunks.push(tempChunk);
+							tempChunk = sentence;
+						} else {
+							// tempChunk is too small, merge with currentChunk or start new sentence
+							if (currentChunk) {
+								currentChunk = currentChunk + ' ' + tempChunk + ' ' + sentence;
+							} else {
+								tempChunk = tempChunk ? tempChunk + ' ' + sentence : sentence;
+							}
 						}
-						tempChunk = sentence;
 					}
 				}
 
+				// Handle remaining tempChunk
 				if (tempChunk) {
 					if (!this.minChunkSize || tempChunk.length >= this.minChunkSize) {
 						constrainedChunks.push(tempChunk);
-					} else if (currentChunk) {
-						currentChunk = currentChunk + ' ' + tempChunk;
 					} else {
-						currentChunk = tempChunk;
+						// tempChunk is too small, add to currentChunk
+						if (currentChunk) {
+							currentChunk = currentChunk + ' ' + tempChunk;
+						} else {
+							currentChunk = tempChunk;
+						}
 					}
 				}
 			} else if (this.minChunkSize && chunkLength < this.minChunkSize) {
@@ -300,17 +376,43 @@ class SemanticDoublePassMergingSplitter extends TextSplitter {
 					currentChunk = '';
 				}
 			} else {
+				// Chunk is within acceptable size range
 				if (currentChunk) {
-					constrainedChunks.push(currentChunk);
-					currentChunk = '';
+					// Check if we should merge currentChunk with this chunk
+					if (!this.minChunkSize || currentChunk.length >= this.minChunkSize) {
+						constrainedChunks.push(currentChunk);
+						currentChunk = '';
+						constrainedChunks.push(chunk);
+					} else {
+						// currentChunk is too small, merge with this chunk
+						currentChunk = currentChunk + ' ' + chunk;
+						if (currentChunk.length >= this.minChunkSize) {
+							constrainedChunks.push(currentChunk);
+							currentChunk = '';
+						}
+					}
+				} else {
+					constrainedChunks.push(chunk);
 				}
-				constrainedChunks.push(chunk);
 			}
 		}
 
-		// Add any remaining chunk
+		// Handle any remaining currentChunk
 		if (currentChunk) {
-			constrainedChunks.push(currentChunk);
+			if (!this.minChunkSize || currentChunk.length >= this.minChunkSize) {
+				constrainedChunks.push(currentChunk);
+			} else {
+				// currentChunk is too small, try to merge with last chunk if possible
+				if (constrainedChunks.length > 0) {
+					const lastChunk = constrainedChunks.pop()!;
+					const mergedChunk = lastChunk + ' ' + currentChunk;
+					constrainedChunks.push(mergedChunk);
+				} else {
+					// No chunks to merge with, but we have content - add it anyway to avoid losing data
+					// This is a rare edge case where all content is smaller than minChunkSize
+					constrainedChunks.push(currentChunk);
+				}
+			}
 		}
 
 		return constrainedChunks;
