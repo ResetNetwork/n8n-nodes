@@ -1,6 +1,6 @@
 import { Document } from '@langchain/core/documents';
 import type { TextSplitter } from '@langchain/textsplitters';
-import type { ISupplyDataFunctions, IBinaryData } from 'n8n-workflow';
+import type { IExecuteFunctions, IBinaryData } from 'n8n-workflow';
 import { dsvFormat } from 'd3-dsv';
 import * as mammoth from 'mammoth';
 import pdfParse from 'pdf-parse';
@@ -10,13 +10,13 @@ interface CSVRow {
 }
 
 export class N8nBinaryLoader {
-  private context: ISupplyDataFunctions;
+  private context: IExecuteFunctions;
   private optionsPrefix: string;
   private binaryDataKey: string;
   private textSplitter?: TextSplitter;
 
   constructor(
-    context: ISupplyDataFunctions,
+    context: IExecuteFunctions,
     optionsPrefix: string,
     binaryDataKey: string,
     textSplitter?: TextSplitter,
