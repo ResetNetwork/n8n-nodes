@@ -15,8 +15,9 @@ else
     echo "✅ n8n is already installed"
 fi
 
-# Get the current directory
-ROOT_DIR=$(pwd)
+# Get the current directory (absolute path)
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+echo "📁 Working from: $ROOT_DIR"
 
 # Array of node directories
 NODE_DIRS=(
@@ -24,31 +25,57 @@ NODE_DIRS=(
     "n8n-nodes-semantic-text-splitter"
     "n8n-nodes-google-gemini-embeddings-extended"
     "n8n-nodes-google-vertex-embeddings-extended"
-    "n8n-nodes-documentloader"
+    "n8n-nodes-semantic-splitter-with-context"
 )
+
+# Function to check if a node builds successfully
+check_build() {
+    local dir="$1"
+    echo "    Checking build for $dir..."
+    if npm run build > /dev/null 2>&1; then
+        echo "    ✅ Build successful"
+        return 0
+    else
+        echo "    ⚠️  Build failed, attempting to install missing dependencies..."
+        # Try to install common missing dependencies
+        npm install @types/node @langchain/google-genai --save-dev > /dev/null 2>&1 || true
+        if npm run build > /dev/null 2>&1; then
+            echo "    ✅ Build successful after installing dependencies"
+            return 0
+        else
+            echo "    ❌ Build still failing, skipping this node"
+            return 1
+        fi
+    fi
+}
 
 # Build and link each node
 echo "📦 Building and linking nodes..."
+SUCCESSFUL_NODES=()
+
 for dir in "${NODE_DIRS[@]}"; do
-    if [ -d "$dir" ]; then
+    if [ -d "$ROOT_DIR/$dir" ]; then
         echo "  Processing $dir..."
         cd "$ROOT_DIR/$dir"
         
         # Install dependencies
         echo "    Installing dependencies..."
-        npm install
+        npm install > /dev/null 2>&1
         
-        # Build the node
-        echo "    Building..."
-        npm run build
-        
-        # Create global link
-        echo "    Creating npm link..."
-        npm link
-        
-        echo "  ✅ $dir ready"
+        # Check if build works
+        if check_build "$dir"; then
+            # Create global link
+            echo "    Creating npm link..."
+            npm link > /dev/null 2>&1
+            
+            # Add to successful nodes list
+            SUCCESSFUL_NODES+=("$dir")
+            echo "  ✅ $dir ready"
+        else
+            echo "  ❌ $dir failed to build, skipping..."
+        fi
     else
-        echo "  ⚠️  Directory $dir not found, skipping..."
+        echo "  ⚠️  Directory $dir not found at $ROOT_DIR/$dir, skipping..."
     fi
 done
 
@@ -64,20 +91,26 @@ if [ ! -d "$N8N_CUSTOM_DIR" ]; then
     echo "  Creating $N8N_CUSTOM_DIR..."
     mkdir -p "$N8N_CUSTOM_DIR"
     cd "$N8N_CUSTOM_DIR"
-    npm init -y
+    npm init -y > /dev/null 2>&1
 else
     echo "  Custom directory already exists"
     cd "$N8N_CUSTOM_DIR"
 fi
 
-# Link all nodes to n8n
+# Link all successful nodes to n8n
 echo "🔗 Linking nodes to n8n..."
-for dir in "${NODE_DIRS[@]}"; do
-    if [ -d "$ROOT_DIR/$dir" ]; then
-        # Extract package name from package.json
-        PACKAGE_NAME=$(cd "$ROOT_DIR/$dir" && node -p "require('./package.json').name")
+for dir in "${SUCCESSFUL_NODES[@]}"; do
+    # Extract package name from package.json
+    PACKAGE_NAME=$(cd "$ROOT_DIR/$dir" && node -p "require('./package.json').name" 2>/dev/null)
+    if [ -n "$PACKAGE_NAME" ]; then
         echo "  Linking $PACKAGE_NAME..."
-        npm link "$PACKAGE_NAME"
+        if npm link "$PACKAGE_NAME" > /dev/null 2>&1; then
+            echo "  ✅ Successfully linked $PACKAGE_NAME"
+        else
+            echo "  ⚠️  Failed to link $PACKAGE_NAME"
+        fi
+    else
+        echo "  ⚠️  Could not determine package name for $dir"
     fi
 done
 
@@ -87,16 +120,23 @@ cd "$ROOT_DIR"
 echo ""
 echo "✅ Setup complete!"
 echo ""
+echo "📊 Summary:"
+echo "  Successfully processed: ${#SUCCESSFUL_NODES[@]} nodes"
+for node in "${SUCCESSFUL_NODES[@]}"; do
+    PACKAGE_NAME=$(cd "$ROOT_DIR/$node" && node -p "require('./package.json').name" 2>/dev/null)
+    echo "    - $PACKAGE_NAME"
+done
+echo ""
 echo "📝 Next steps:"
 echo "  1. Start n8n with: n8n start"
 echo "  2. Open http://localhost:5678 in your browser"
-echo "  3. Search for these nodes in the nodes panel:"
-echo "     - Contextual Document Loader"
-echo "     - Semantic Double-Pass Text Splitter"
-echo "     - Google Gemini Embeddings Extended"
-echo "     - Google Vertex Embeddings Extended"
-echo "     - Document Loader"
+echo "  3. Search for these nodes in the nodes panel"
 echo ""
 echo "💡 For development with auto-reload:"
 echo "  - Run 'npm run dev' in any node directory"
-echo "  - Restart n8n after making changes" 
+echo "  - Restart n8n after making changes"
+echo ""
+echo "🔍 If nodes don't appear, try:"
+echo "  - Restart n8n completely"
+echo "  - Check n8n logs for any loading errors"
+echo "  - Verify the nodes are in ~/.n8n/custom/node_modules/" 

@@ -1,0 +1,178 @@
+{
+  "name": "Semantic Splitter with Context Example",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "assignment1",
+              "name": "text",
+              "value": "ACME Corporation Q2 2023 Financial Report\n\nExecutive Summary\nACME Corporation experienced strong growth in Q2 2023, driven by increased demand for our cloud services and enterprise solutions. The company demonstrated resilience in a challenging market environment.\n\nRevenue Performance\nThe company's revenue grew by 3% over the previous quarter, reaching $314 million. This growth was primarily attributed to our SaaS offerings, which saw a 15% increase in subscriptions. Our enterprise division contributed significantly to this growth.\n\nProduct Performance\nOur flagship product, ACME Cloud Suite, continued to dominate the market with a 42% market share. The newly launched ACME Analytics platform exceeded expectations, contributing $23 million in revenue during its first quarter.\n\nRegional Breakdown\nNorth America remained our strongest market, accounting for 55% of total revenue. European markets showed promising growth at 12% quarter-over-quarter, while Asian markets are emerging as a key growth opportunity.\n\nFuture Outlook\nWe expect continued growth in Q3 2023, with projected revenue between $325-335 million. Investment in AI capabilities and expansion into Asian markets are key priorities for the upcoming quarter.",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-data",
+      "name": "Set Test Document",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4",
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "id": "openai-chat",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [650, 100]
+    },
+    {
+      "parameters": {
+        "model": "text-embedding-3-small"
+      },
+      "id": "embeddings",
+      "name": "OpenAI Embeddings",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1,
+      "position": [650, 200]
+    },
+    {
+      "parameters": {
+        "contextPrompt": "Please give a short succinct context to situate this chunk within the overall document for the purposes of improving search retrieval of the chunk. Answer only with the succinct context and nothing else.",
+        "includeLabels": false,
+        "options": {
+          "bufferSize": 1,
+          "breakpointThresholdType": "percentile",
+          "secondPassThreshold": 0.8,
+          "minChunkSize": 100,
+          "maxChunkSize": 500
+        }
+      },
+      "id": "contextual-semantic-splitter",
+      "name": "Semantic Splitter with Context",
+      "type": "n8n-nodes-semantic-splitter-with-context.contextualSemanticTextSplitter",
+      "typeVersion": 1,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "document-loader",
+      "name": "Document Loader",
+      "type": "n8n-nodes-documentloader.documentLoader",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "mode": "insert"
+      },
+      "id": "vector-store",
+      "name": "In-Memory Vector Store",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreInMemory",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Test Document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Test Document": {
+      "main": [
+        [
+          {
+            "node": "Vector Store",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Contextual Semantic Text Splitter",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Embeddings": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Contextual Semantic Text Splitter",
+            "type": "ai_embedding",
+            "index": 0
+          },
+          {
+            "node": "Vector Store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Contextual Semantic Text Splitter": {
+      "ai_textSplitter": [
+        [
+          {
+            "node": "Document Loader",
+            "type": "ai_textSplitter",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Document Loader": {
+      "ai_document": [
+        [
+          {
+            "node": "Vector Store",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "templateId": "contextual-semantic-text-splitter-example"
+  },
+  "pinData": {},
+  "versionId": "1",
+  "triggerCount": 0,
+  "tags": []
+} 

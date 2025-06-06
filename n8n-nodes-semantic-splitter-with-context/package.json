@@ -1,13 +1,14 @@
 {
-  "name": "n8n-nodes-documentloader",
+  "name": "n8n-nodes-semantic-splitter-with-context",
   "version": "0.1.0",
-  "description": "Document loader node for n8n with LangChain integration",
+  "description": "Semantic Splitter with Context for n8n with LangChain integration",
   "keywords": [
     "n8n-community-node-package",
-    "document-loader",
+    "text-splitter",
+    "semantic",
+    "contextual",
     "langchain",
-    "ai",
-    "document-processing"
+    "ai"
   ],
   "license": "MIT",
   "homepage": "https://github.com/ResetNetwork/n8n-nodes#readme",
@@ -18,7 +19,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ResetNetwork/n8n-nodes.git",
-    "directory": "n8n-nodes-documentloader"
+    "directory": "n8n-nodes-semantic-splitter-with-context"
   },
   "bugs": {
     "url": "https://github.com/ResetNetwork/n8n-nodes/issues"
@@ -30,9 +31,9 @@
   "scripts": {
     "build": "tsc && gulp build:icons",
     "dev": "tsc --watch",
-    "format": "prettier nodes utils --write",
-    "lint": "eslint nodes --ext .ts && eslint utils --ext .ts",
-    "lintfix": "eslint nodes --ext .ts --fix && eslint utils --ext .ts --fix",
+    "format": "prettier nodes --write",
+    "lint": "eslint nodes --ext .ts",
+    "lintfix": "eslint nodes --ext .ts --fix",
     "prepublishOnly": "npm run build && npm run lint"
   },
   "files": [
@@ -42,14 +43,14 @@
     "n8nNodesApiVersion": 1,
     "credentials": [],
     "nodes": [
-      "dist/nodes/DocumentLoader/DocumentLoader.node.js"
+      "dist/nodes/text_splitters/SemanticSplitterWithContext/SemanticSplitterWithContext.node.js"
     ]
   },
   "devDependencies": {
-    "@types/d3-dsv": "^3.0.7",
     "@types/node": "^18.16.16",
-    "@types/pdf-parse": "^1.1.5",
+    "@typescript-eslint/eslint-plugin": "~5.45",
     "@typescript-eslint/parser": "~5.45",
+    "eslint": "^8.0.0",
     "eslint-plugin-n8n-nodes-base": "^1.11.0",
     "gulp": "^4.0.2",
     "n8n-workflow": "*",
@@ -58,13 +59,12 @@
   },
   "dependencies": {
     "@langchain/core": "^0.1.0",
-    "@langchain/textsplitters": "^0.0.0",
-    "d3-dsv": "^2.0.0",
-    "epub2": "^3.0.2",
-    "mammoth": "^1.6.0",
-    "pdf-parse": "^1.1.1"
+    "@langchain/textsplitters": "^0.0.0"
   },
   "peerDependencies": {
-    "n8n-workflow": "*"
+    "n8n-workflow": "^1.25.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
-}
+} 
