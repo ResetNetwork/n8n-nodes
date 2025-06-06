@@ -1,4 +1,11 @@
+
 # n8n-nodes-contextual-document-loader
+
+> **⚠️ DEPRECATED - This node is no longer maintained and has known issues**
+> 
+> **Please use [`n8n-nodes-semantic-splitter-with-context`](https://www.npmjs.com/package/n8n-nodes-semantic-splitter-with-context) instead.**
+> 
+> This node has been deprecated due to compatibility issues and is no longer receiving updates. The recommended replacement provides better functionality and active maintenance.
 
 This is an n8n community node that provides document loading with **Contextual Retrieval** support, implementing the technique described in [Anthropic's blog post](https://www.anthropic.com/news/contextual-retrieval). This node dramatically improves RAG (Retrieval-Augmented Generation) performance by adding context to document chunks before they are embedded.
 
@@ -21,16 +28,24 @@ According to Anthropic's research, this technique can reduce retrieval failure r
 
 ## Installation
 
-### Community Node (Recommended)
+> **⚠️ WARNING: Do not install this deprecated package**
+> 
+> **Instead, install [`n8n-nodes-semantic-splitter-with-context`](https://www.npmjs.com/package/n8n-nodes-semantic-splitter-with-context)**
 
-1. In n8n, go to **Settings** > **Community Nodes**
-2. Search for `n8n-nodes-contextual-document-loader`
-3. Click **Install**
+### ~~Community Node (Not Recommended - Deprecated)~~
 
-### Manual Installation
+1. ~~In n8n, go to **Settings** > **Community Nodes**~~
+2. ~~Search for `n8n-nodes-contextual-document-loader`~~
+3. ~~Click **Install**~~
+
+### ~~Manual Installation (Not Recommended - Deprecated)~~
 
 ```bash
-npm install n8n-nodes-contextual-document-loader
+# DO NOT RUN - This package is deprecated
+# npm install n8n-nodes-contextual-document-loader
+
+# Instead, use:
+npm install n8n-nodes-semantic-splitter-with-context
 ```
 
 ## Usage

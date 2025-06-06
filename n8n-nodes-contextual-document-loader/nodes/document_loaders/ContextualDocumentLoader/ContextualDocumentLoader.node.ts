@@ -14,12 +14,12 @@ import { getConnectionHintNoticeField } from '../../utils/sharedFields';
 
 export class ContextualDocumentLoader implements INodeType {
 	description: INodeTypeDescription = {
-		displayName: 'Contextual Document Loader',
+		displayName: 'Contextual Document Loader (DEPRECATED)',
 		name: 'contextualDocumentLoader',
 		icon: 'file:contextualDocumentLoader.svg',
 		group: ['transform'],
 		version: 1,
-		description: 'Load documents with contextual retrieval support for improved RAG performance',
+		description: '⚠️ DEPRECATED: Use n8n-nodes-semantic-splitter-with-context instead. This node has known issues and is no longer maintained.',
 		defaults: {
 			name: 'Contextual Document Loader',
 		},
@@ -55,6 +55,19 @@ export class ContextualDocumentLoader implements INodeType {
 		outputs: [NodeConnectionType.AiDocument],
 		outputNames: ['Document'],
 		properties: [
+			{
+				displayName: '⚠️ DEPRECATION NOTICE',
+				name: 'deprecationNotice',
+				type: 'notice',
+				default: '',
+				displayOptions: {
+					show: {},
+				},
+				typeOptions: {
+					theme: 'warning',
+				},
+				description: 'This node is DEPRECATED and has known issues. Please use &lt;strong&gt;n8n-nodes-semantic-splitter-with-context&lt;/strong&gt; instead for better functionality and active maintenance.',
+			},
 			getConnectionHintNoticeField([NodeConnectionType.AiVectorStore]),
 			{
 				displayName: 'Context Prompt',
