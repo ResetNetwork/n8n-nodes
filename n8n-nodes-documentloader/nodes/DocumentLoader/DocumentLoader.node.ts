@@ -287,8 +287,12 @@ export class DocumentLoader implements INodeType {
         ? new N8nBinaryLoader(this, 'options.', binaryDataKey, textSplitter)
         : new N8nJsonLoader(this, 'options.', textSplitter);
 
+    // Load documents and return them directly
+    const wrappedProcessor = logWrapper(processor, this);
+    const documents = await wrappedProcessor.load();
+
     return {
-      response: logWrapper(processor, this),
+      response: documents,
     };
   }
 } 
