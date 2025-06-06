@@ -1,14 +1,14 @@
 import { Document } from '@langchain/core/documents';
 import type { TextSplitter } from '@langchain/textsplitters';
-import type { ISupplyDataFunctions, INodeExecutionData } from 'n8n-workflow';
+import type { IExecuteFunctions, INodeExecutionData } from 'n8n-workflow';
 
 export class N8nJsonLoader {
-  private context: ISupplyDataFunctions;
+  private context: IExecuteFunctions;
   private optionsPrefix: string;
   private textSplitter?: TextSplitter;
 
   constructor(
-    context: ISupplyDataFunctions,
+    context: IExecuteFunctions,
     optionsPrefix: string,
     textSplitter?: TextSplitter,
   ) {

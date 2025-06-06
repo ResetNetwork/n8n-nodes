@@ -1,11 +1,11 @@
 /* eslint-disable n8n-nodes-base/node-dirname-against-convention */
 import type { TextSplitter } from '@langchain/textsplitters';
 import {
-  NodeConnectionType,
   type INodeType,
   type INodeTypeDescription,
-  type ISupplyDataFunctions,
-  type SupplyData,
+  type INodeExecutionData,
+  type IExecuteFunctions,
+  NodeConnectionType,
 } from 'n8n-workflow';
 
 import { logWrapper } from '../../utils/logWrapper';
@@ -37,24 +37,69 @@ export class DocumentLoader implements INodeType {
         ],
       },
     },
-    // eslint-disable-next-line n8n-nodes-base/node-class-description-inputs-wrong-regular-node
-    inputs: [
-      {
-        displayName: 'Text Splitter',
-        maxConnections: 1,
-        type: NodeConnectionType.AiTextSplitter,
-        required: true,
-      },
-    ],
-    // eslint-disable-next-line n8n-nodes-base/node-class-description-outputs-wrong
-    outputs: [NodeConnectionType.AiDocument],
-    outputNames: ['Document'],
+    inputs: [NodeConnectionType.Main],
+    outputs: [NodeConnectionType.Main],
+    outputNames: ['Documents'],
     properties: [
       {
         displayName: 'This will load data from a previous step in the workflow',
         name: 'notice',
         type: 'notice',
         default: '',
+      },
+      {
+        displayName: 'Enable Text Splitting',
+        name: 'enableSplitting',
+        type: 'boolean',
+        default: false,
+        description: 'Whether to split documents using a text splitter',
+      },
+      {
+        displayName: 'Text Splitter Type',
+        name: 'splitterType',
+        type: 'options',
+        default: 'recursive',
+        displayOptions: {
+          show: {
+            enableSplitting: [true],
+          },
+        },
+        options: [
+          {
+            name: 'Recursive Character Text Splitter',
+            value: 'recursive',
+            description: 'Split text recursively by characters',
+          },
+          {
+            name: 'Character Text Splitter',
+            value: 'character',
+            description: 'Split text by characters',
+          },
+        ],
+      },
+      {
+        displayName: 'Chunk Size',
+        name: 'chunkSize',
+        type: 'number',
+        default: 1000,
+        description: 'Maximum size of each chunk',
+        displayOptions: {
+          show: {
+            enableSplitting: [true],
+          },
+        },
+      },
+      {
+        displayName: 'Chunk Overlap',
+        name: 'chunkOverlap',
+        type: 'number',
+        default: 200,
+        description: 'Number of characters to overlap between chunks',
+        displayOptions: {
+          show: {
+            enableSplitting: [true],
+          },
+        },
       },
       {
         displayName: 'Type of Data',
@@ -272,23 +317,58 @@ export class DocumentLoader implements INodeType {
     ],
   };
 
-  async supplyData(this: ISupplyDataFunctions, itemIndex: number): Promise<SupplyData> {
-    const dataType = this.getNodeParameter('dataType', itemIndex, 'json') as 'json' | 'binary';
-    
-    const textSplitter = (await this.getInputConnectionData(
-      NodeConnectionType.AiTextSplitter,
-      0,
-    )) as TextSplitter | undefined;
+  async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
+    const returnData: INodeExecutionData[] = [];
+    const items = this.getInputData();
 
-    const binaryDataKey = this.getNodeParameter('binaryDataKey', itemIndex, '') as string;
+    for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
+      try {
+        const dataType = this.getNodeParameter('dataType', itemIndex, 'json') as 'json' | 'binary';
+        const enableSplitting = this.getNodeParameter('enableSplitting', itemIndex, false) as boolean;
+        
+        let textSplitter: TextSplitter | undefined;
+        
+        if (enableSplitting) {
+          const { RecursiveCharacterTextSplitter, CharacterTextSplitter } = await import('@langchain/textsplitters');
+          const splitterType = this.getNodeParameter('splitterType', itemIndex, 'recursive') as string;
+          const chunkSize = this.getNodeParameter('chunkSize', itemIndex, 1000) as number;
+          const chunkOverlap = this.getNodeParameter('chunkOverlap', itemIndex, 200) as number;
+          
+          textSplitter = splitterType === 'recursive' 
+            ? new RecursiveCharacterTextSplitter({ chunkSize, chunkOverlap })
+            : new CharacterTextSplitter({ chunkSize, chunkOverlap });
+        }
 
-    const processor =
-      dataType === 'binary'
-        ? new N8nBinaryLoader(this, 'options.', binaryDataKey, textSplitter)
-        : new N8nJsonLoader(this, 'options.', textSplitter);
+        const binaryDataKey = this.getNodeParameter('binaryDataKey', itemIndex, '') as string;
 
-    return {
-      response: logWrapper(processor, this),
-    };
+        const processor =
+          dataType === 'binary'
+            ? new N8nBinaryLoader(this, 'options.', binaryDataKey, textSplitter)
+            : new N8nJsonLoader(this, 'options.', textSplitter);
+
+        const documents = await logWrapper(processor, this).load();
+        
+        // Convert documents to n8n data format
+        for (const doc of documents) {
+          returnData.push({
+            json: {
+              pageContent: doc.pageContent,
+              metadata: doc.metadata,
+            },
+          });
+        }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        if (this.continueOnFail()) {
+          returnData.push({
+            json: { error: errorMessage },
+          });
+        } else {
+          throw error;
+        }
+      }
+    }
+
+    return [returnData];
   }
 } 
