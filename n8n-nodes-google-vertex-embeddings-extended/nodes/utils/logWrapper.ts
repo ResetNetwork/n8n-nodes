@@ -1,5 +1,4 @@
 import { ISupplyDataFunctions, NodeConnectionType, NodeOperationError } from 'n8n-workflow';
-import { Embeddings } from '@langchain/core/embeddings';
 
 async function callMethodAsync<T>(
 	this: T,
@@ -43,8 +42,8 @@ export function logWrapper<T extends object>(originalInstance: T, executeFunctio
 				console.log('VertexEmbeddingsLogWrapper: Method accessed:', prop);
 			}
 
-			// Handle Embeddings specifically
-			if (originalInstance instanceof Embeddings) {
+			// Handle Embeddings - check for embedDocuments/embedQuery methods instead of instanceof
+			if ('embedDocuments' in target || 'embedQuery' in target) {
 				if (prop === 'embedDocuments' && 'embedDocuments' in target) {
 					return async (documents: string[]): Promise<number[][]> => {
 						console.log('VertexEmbeddingsLogWrapper: embedDocuments intercepted, docs:', documents?.length || 0);
