@@ -186,6 +186,9 @@ For issues and feature requests, please use the [GitHub issue tracker](https://g
 
 ## Changelog
 
+### 0.1.2
+- Version bump for republishing to ensure package visibility
+
 ### 0.1.1
 - Updated all dependencies to latest versions
 - Fixed TypeScript compatibility issues

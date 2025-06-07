@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-google-gemini-embeddings-extended",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "n8n community sub-node for Google Gemini Embeddings with extended features like output dimensions support",
   "keywords": [
     "n8n-community-node-package",
