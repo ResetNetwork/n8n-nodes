@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-semantic-splitter-with-context",
-  "version": "0.1.0",
+  "version": "0.2.1",
   "description": "Semantic Splitter with Context for n8n with LangChain integration",
   "keywords": [
     "n8n-community-node-package",
@@ -47,15 +47,15 @@
     ]
   },
   "devDependencies": {
-    "@types/node": "^18.16.16",
-    "@typescript-eslint/eslint-plugin": "~5.45",
-    "@typescript-eslint/parser": "~5.45",
-    "eslint": "^8.0.0",
-    "eslint-plugin-n8n-nodes-base": "^1.11.0",
-    "gulp": "^4.0.2",
+    "@types/node": "^20.11.0",
+    "@typescript-eslint/eslint-plugin": "^6.21.0",
+    "@typescript-eslint/parser": "^6.21.0",
+    "eslint": "^8.57.0",
+    "eslint-plugin-n8n-nodes-base": "^1.16.0",
+    "gulp": "^5.0.0",
     "n8n-workflow": "*",
-    "prettier": "^2.7.1",
-    "typescript": "~5.3.0"
+    "prettier": "^3.2.5",
+    "typescript": "^5.3.3"
   },
   "dependencies": {
     "@langchain/core": "^0.1.0",
@@ -67,4 +67,4 @@
   "engines": {
     "node": ">=18.0.0"
   }
-} 
+}
