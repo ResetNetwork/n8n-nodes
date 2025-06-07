@@ -186,6 +186,14 @@ For issues and feature requests, please use the [GitHub issue tracker](https://g
 
 ## Changelog
 
+### 0.1.1
+- Updated all dependencies to latest versions
+- Fixed TypeScript compatibility issues
+- Updated ESLint configuration for ESLint 9.x
+- Updated `@langchain/google-genai` from 0.0.23 to 0.2.10
+- Updated `n8n-workflow` peer dependency to match current version (1.82.0)
+- Improved build stability and security
+
 ### 0.1.0
 - Initial release
 - Support for Google Gemini embeddings via API

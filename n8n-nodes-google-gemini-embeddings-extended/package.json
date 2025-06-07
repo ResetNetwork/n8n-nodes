@@ -48,19 +48,19 @@
     ]
   },
   "devDependencies": {
-    "@types/express": "^4.17.21",
-    "@types/node": "^20.11.0",
-    "@typescript-eslint/parser": "^6.19.0",
-    "eslint": "^8.56.0",
+    "@types/express": "^5.0.2",
+    "@types/node": "^22.15.30",
+    "@typescript-eslint/parser": "^8.33.1",
+    "eslint": "^9.28.0",
     "eslint-plugin-n8n-nodes-base": "^1.16.1",
-    "n8n-workflow": "^1.25.1",
+    "n8n-workflow": "^1.82.0",
     "prettier": "^3.2.4",
-    "typescript": "^5.3.3"
+    "typescript": "^5.8.3"
   },
   "dependencies": {
-    "@langchain/google-genai": "^0.0.23"
+    "@langchain/google-genai": "^0.2.10"
   },
   "peerDependencies": {
-    "n8n-workflow": "^1.25.1"
+    "n8n-workflow": "^1.82.0"
   }
 }
