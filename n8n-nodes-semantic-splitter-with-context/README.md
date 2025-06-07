@@ -4,8 +4,8 @@ A custom n8n node that provides semantic text splitting with contextual enhancem
 
 ## Features
 
-- **Semantic Double-Pass Splitting**: Uses embeddings to identify semantic boundaries and merges similar adjacent chunks
-- **Contextual Enhancement**: Generates contextual descriptions for each chunk using a chat model
+- **Semantic Double-Pass Merging**: Uses embeddings to identify semantic boundaries and merges similar adjacent chunks implementing the technique described in [Konrad Rucinski post](https://bitpeak.com/chunking-methods-in-rag-methods-comparison/)
+- **Contextual Enhancement**: Generates contextual descriptions for each chunk using a chat model implementing the technique described in [Anthropic's post](https://www.anthropic.com/news/contextual-retrieval)
 - **Customizable Prompts**: User-defined prompts for context generation
 - **Multiple Threshold Methods**: Percentile, standard deviation, interquartile, and gradient-based breakpoint detection
 - **Size Constraints**: Configurable minimum and maximum chunk sizes
@@ -14,11 +14,18 @@ A custom n8n node that provides semantic text splitting with contextual enhancem
 ## How It Works
 
 1. **Document Input**: Receives documents from document loaders
-2. **Semantic Splitting**: Splits text using semantic similarity analysis
+2. **Semantic Splitting**: Splits text by using semantic similarity analysis
 3. **Context Generation**: For each chunk, generates a contextual description using the chat model
 4. **Output Format**: Returns chunks in the format: `[context]\n\n[chunk]`
 
 ## Installation
+
+### Community Nodes (Recommended)
+
+1. Go to **Settings** > **Community Nodes**
+2. Select **Install**
+3. Enter `n8n-nodes-semantic-splitter-with-context` in the search field
+4. Select **Install**
 
 ### Prerequisites
 
@@ -70,7 +77,7 @@ n8n start
 The context prompt is the instruction given to the AI model for generating contextual descriptions. The default prompt is:
 
 ```
-Please give a short succinct context to situate this chunk within the overall document for the purposes of improving search retrieval of the chunk. Answer only with the succinct context and nothing else.
+Please generate a short succinct context summary to situate this text chunk within the overall document to enhance search retrieval, two or three sentances max. The chunk contains merged content from different document sections, so focus on the main topics and concepts rather than sequential flow. Answer only with the succinct context and nothing else.
 ```
 
 The document and chunk content are automatically provided to the AI model in a structured format. You only need to customize the instructions for how the context should be generated.
