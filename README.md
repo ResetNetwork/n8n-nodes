@@ -12,6 +12,7 @@ All packages are published to npm under the `@resetnetwork` scope and can be ins
 | [`n8n-nodes-semantic-text-splitter`](./n8n-nodes-semantic-text-splitter) | ![npm](https://img.shields.io/npm/v/n8n-nodes-semantic-text-splitter) | Semantic double-pass merging text splitting with embeddings-based chunking |
 | [`n8n-nodes-google-gemini-embeddings-extended`](./n8n-nodes-google-gemini-embeddings-extended) | ![npm](https://img.shields.io/npm/v/n8n-nodes-google-gemini-embeddings-extended) | Google Gemini Embeddings with extended features like output dimensions support |
 | [`n8n-nodes-google-vertex-embeddings-extended`](./n8n-nodes-google-vertex-embeddings-extended) | ![npm](https://img.shields.io/npm/v/n8n-nodes-google-vertex-embeddings-extended) | Google Vertex AI Embeddings with output dimensions support |
+| [`n8n-nodes-tool-vector-store-extended`](./n8n-nodes-tool-vector-store-extended) | ![npm](https://img.shields.io/npm/v/n8n-nodes-tool-vector-store-extended) | Vector Store Question Answer Tool with extended features and visual feedback |
 | [`n8n-nodes-documentloader`](./n8n-nodes-documentloader) | ![npm](https://img.shields.io/npm/v/n8n-nodes-documentloader) | Fully functional document loader that replicates the official DocumentDefaultDataLoader functionality with LangChain integration |
 
 ## 🚀 Quick Start
@@ -25,7 +26,7 @@ Each node can be installed individually via npm:
 npm install n8n-nodes-contextual-document-loader
 
 # Or install multiple nodes
-npm install n8n-nodes-contextual-document-loader n8n-nodes-semantic-text-splitter
+npm install n8n-nodes-contextual-document-loader n8n-nodes-semantic-text-splitter n8n-nodes-tool-vector-store-extended
 ```
 
 ### Development Setup
@@ -227,6 +228,7 @@ After installation, verify the nodes appear in n8n:
    - **Semantic Double-Pass Text Splitter** (search for "semantic")
    - **Google Gemini Embeddings Extended** (search for "gemini")
    - **Google Vertex Embeddings Extended** (search for "vertex")
+   - **Vector Store Question Answer Tool Extended** (search for "vector store" or "tool")
    - **Document Loader** (search for "document loader")
 
 ### Development Testing

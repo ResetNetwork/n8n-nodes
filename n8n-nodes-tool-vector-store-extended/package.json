@@ -1,0 +1,67 @@
+{
+  "name": "n8n-nodes-tool-vector-store-extended",
+  "version": "0.1.0",
+  "description": "n8n community node for Vector Store Question Answer Tool with extended features and visual feedback",
+  "keywords": [
+    "n8n-community-node-package",
+    "vector-store",
+    "tool",
+    "ai",
+    "langchain",
+    "question-answer",
+    "qa",
+    "retrieval"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/ResetNetwork/n8n-nodes#readme",
+  "author": {
+    "name": "Reset Network",
+    "url": "https://github.com/ResetNetwork"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ResetNetwork/n8n-nodes.git",
+    "directory": "n8n-nodes-tool-vector-store-extended"
+  },
+  "bugs": {
+    "url": "https://github.com/ResetNetwork/n8n-nodes/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc && mkdir -p dist/nodes/tools/ToolVectorStoreExtended && cp -r nodes/tools/ToolVectorStoreExtended/*.svg dist/nodes/tools/ToolVectorStoreExtended/ 2>/dev/null || true",
+    "dev": "tsc --watch",
+    "format": "prettier nodes --write",
+    "lint": "eslint nodes/**/*.ts",
+    "lintfix": "eslint nodes/**/*.ts --fix",
+    "prepublishOnly": "npm run build && npm run lint"
+  },
+  "files": [
+    "dist"
+  ],
+  "n8n": {
+    "n8nNodesApiVersion": 1,
+    "nodes": [
+      "dist/nodes/tools/ToolVectorStoreExtended/ToolVectorStoreExtended.node.js"
+    ]
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@typescript-eslint/parser": "^6.19.0",
+    "eslint": "^8.56.0",
+    "eslint-plugin-n8n-nodes-base": "^1.16.1",
+    "n8n-workflow": "^1.25.1",
+    "prettier": "^3.2.4",
+    "typescript": "^5.3.3"
+  },
+  "peerDependencies": {
+    "n8n-workflow": "^1.25.1",
+    "@langchain/core": "*",
+    "langchain": "*"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

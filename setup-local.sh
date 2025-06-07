@@ -25,6 +25,7 @@ NODE_DIRS=(
     "n8n-nodes-google-gemini-embeddings-extended"
     "n8n-nodes-google-vertex-embeddings-extended"
     "n8n-nodes-semantic-splitter-with-context"
+    "n8n-nodes-tool-vector-store-extended"
 )
 
 # Function to check and fix package structure

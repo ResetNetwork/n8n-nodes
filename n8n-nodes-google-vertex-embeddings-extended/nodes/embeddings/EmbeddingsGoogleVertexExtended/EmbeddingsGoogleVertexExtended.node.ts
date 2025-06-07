@@ -6,7 +6,6 @@ import {
 	NodeConnectionType,
 	ILoadOptionsFunctions,
 	INodePropertyOptions,
-	IHttpRequestOptions,
 } from 'n8n-workflow';
 
 import { GoogleVertexAIEmbeddings } from '@langchain/community/embeddings/googlevertexai';
@@ -129,20 +128,36 @@ export class EmbeddingsGoogleVertexExtended implements INodeType {
 	methods = {
 		loadOptions: {
 			async getProjects(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const credentials = await this.getCredentials('googleApi');
+				const { GoogleAuth } = await import('google-auth-library');
+				
+				const email = credentials.email as string;
+				const privateKey = (credentials.privateKey as string).replace(/\\n/g, '\n');
+				
+				const auth = new GoogleAuth({
+					credentials: {
+						client_email: email,
+						private_key: privateKey,
+					},
+					scopes: ['https://www.googleapis.com/auth/cloud-platform'],
+				});
+
 				try {
-					const requestOptions: IHttpRequestOptions = {
-						method: 'GET',
-						url: 'https://cloudresourcemanager.googleapis.com/v1/projects',
-						json: true,
-					};
+					const client = await auth.getClient();
+					const accessToken = await client.getAccessToken();
+					
+					const response = await fetch('https://cloudresourcemanager.googleapis.com/v1/projects', {
+						headers: {
+							'Authorization': `Bearer ${accessToken.token}`,
+						},
+					});
 
-					const response = await this.helpers.httpRequestWithAuthentication.call(
-						this,
-						'googleApi',
-						requestOptions,
-					);
+					if (!response.ok) {
+						throw new Error('Failed to fetch projects');
+					}
 
-					const projects = response.projects || [];
+					const data = await response.json() as any;
+					const projects = data.projects || [];
 					
 					return projects.map((project: any) => ({
 						name: project.name || project.projectId,
@@ -159,6 +174,7 @@ export class EmbeddingsGoogleVertexExtended implements INodeType {
 	async supplyData(this: ISupplyDataFunctions): Promise<SupplyData> {
 		console.log('GoogleVertexEmbeddings: supplyData called!');
 		
+		const credentials = await this.getCredentials('googleApi');
 		const projectId = this.getNodeParameter('projectId', 0) as string;
 		const modelName = this.getNodeParameter('model', 0) as string;
 		const outputDimensions = this.getNodeParameter('outputDimensions', 0, 0) as number;
@@ -167,16 +183,24 @@ export class EmbeddingsGoogleVertexExtended implements INodeType {
 			taskType?: string;
 		};
 
-		// Create embeddings instance using LangChain's GoogleVertexAIEmbeddings
+		const region = options.region || 'us-central1';
+
+		// Format private key like the official node does
+		const privateKey = (credentials.privateKey as string).replace(/\\n/g, '\n');
+
+		// Create embeddings instance using LangChain's GoogleVertexAIEmbeddings (like official node)
 		const embeddings = new GoogleVertexAIEmbeddings({
+			authOptions: {
+				projectId,
+				credentials: {
+					client_email: credentials.email as string,
+					private_key: privateKey,
+				},
+			},
+			location: region,
 			model: modelName,
 			...(outputDimensions > 0 && { outputDimensionality: outputDimensions }),
 			...(options.taskType && { taskType: options.taskType as any }),
-			authOptions: {
-				projectId,
-				// Will use the Google Cloud credentials from n8n
-				scopes: ['https://www.googleapis.com/auth/cloud-platform'],
-			},
 		});
 
 		// Return the embeddings instance wrapped with logging for visual feedback
