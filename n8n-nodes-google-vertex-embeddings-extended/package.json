@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-google-vertex-embeddings-extended",
-  "version": "0.3.2",
+  "version": "0.3.4",
   "description": "n8n community sub-node for Google Vertex AI Embeddings with output dimensions support - use with vector stores",
   "keywords": [
     "n8n-community-node-package",
@@ -48,20 +48,20 @@
     ]
   },
   "devDependencies": {
-    "@types/express": "^4.17.21",
-    "@types/node": "^20.11.0",
-    "@typescript-eslint/parser": "^6.19.0",
-    "eslint": "^8.56.0",
+    "@types/express": "^4.17.22",
+    "@types/node": "^20.19.0",
+    "@typescript-eslint/parser": "^8.15.0",
+    "eslint": "^8.57.1",
     "eslint-plugin-n8n-nodes-base": "^1.16.1",
-    "n8n-workflow": "^1.25.1",
-    "prettier": "^3.2.4",
-    "typescript": "^5.3.3"
+    "n8n-workflow": "^1.82.0",
+    "prettier": "^3.3.3",
+    "typescript": "^5.5.4"
   },
   "dependencies": {
-    "@langchain/google-vertexai": "^0.0.21",
-    "google-auth-library": "^9.6.3"
+    "@langchain/google-vertexai": "^0.2.10",
+    "google-auth-library": "^9.15.0"
   },
   "peerDependencies": {
-    "n8n-workflow": "^1.25.1"
+    "n8n-workflow": "^1.82.0"
   }
 }

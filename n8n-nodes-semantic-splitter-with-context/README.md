@@ -5,7 +5,7 @@ A custom n8n node that provides semantic text splitting with contextual enhancem
 ## Features
 
 - **Semantic Double-Pass Merging**: Uses embeddings to identify semantic boundaries and merges similar adjacent chunks implementing the technique described in [Konrad Rucinski post](https://bitpeak.com/chunking-methods-in-rag-methods-comparison/)
-- **Contextual Enhancement**: Generates contextual descriptions for each chunk using a chat model implementing the technique described in [Anthropic's post](https://www.anthropic.com/news/contextual-retrieval)
+- **Contextual Enhancement**: Generates contextual descriptions for each chunk using a chat model implementing the technique described in [Anthropic's post](https://www.anthropic.com/news/contextual-retrieval) and inspired by Jim Le's [workflow](https://community.n8n.io/t/building-the-ultimate-rag-setup-with-contextual-summaries-sparse-vectors-and-reranking/54861)
 - **Customizable Prompts**: User-defined prompts for context generation
 - **Multiple Threshold Methods**: Percentile, standard deviation, interquartile, and gradient-based breakpoint detection
 - **Size Constraints**: Configurable minimum and maximum chunk sizes

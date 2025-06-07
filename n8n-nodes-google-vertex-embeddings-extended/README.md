@@ -174,6 +174,14 @@ For issues and feature requests, please use the [GitHub issue tracker](https://g
 
 ## Changelog
 
+### 0.3.4
+- Updated dependencies to latest compatible versions
+- Updated @langchain/google-vertexai from 0.0.21 to 0.2.10
+- Updated google-auth-library from 9.6.3 to 9.15.0
+- Updated TypeScript ESLint parser to support newer TypeScript versions
+- Updated n8n-workflow peer dependency to 1.82.0
+- Improved build stability and resolved dependency conflicts
+
 ### 0.3.2
 - Fixed issue with gemini-embedding-001 model that only supports single input per request
 - Added better error messages to show API response details
