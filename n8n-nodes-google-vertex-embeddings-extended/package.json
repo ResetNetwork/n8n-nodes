@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-google-vertex-embeddings-extended",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "n8n community sub-node for Google Vertex AI Embeddings with output dimensions support - use with vector stores",
   "keywords": [
     "n8n-community-node-package",

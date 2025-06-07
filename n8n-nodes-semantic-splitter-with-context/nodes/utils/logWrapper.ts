@@ -26,7 +26,7 @@ function logAiEvent(executeFunctions: ISupplyDataFunctions, eventType: string): 
 				type: eventType,
 			});
 		}
-	} catch (error) {
+	} catch {
 		// Silently fail if logAiEvent is not available
 	}
 }
