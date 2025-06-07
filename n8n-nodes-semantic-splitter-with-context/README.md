@@ -1,6 +1,6 @@
 # n8n-nodes-semantic-splitter-with-context
 
-A custom n8n node that provides semantic text splitting with contextual enhancement using LangChain integration. This node combines semantic double-pass merging with AI-generated contextual descriptions for improved retrieval performance.
+A custom n8n node that provides semantic text splitting with contextual enhancement using n8n's built-in LangChain integration. This node combines semantic double-pass merging with AI-generated contextual descriptions for improved retrieval performance. **Now with zero external dependencies** - uses n8n's built-in LangChain modules for seamless integration.
 
 ## Features
 
@@ -129,6 +129,18 @@ Chunk: The company's revenue grew by 3% over the previous quarter, reaching $314
 - **Semantic Coherence**: Chunks maintain semantic meaning through intelligent boundary detection
 - **Flexible Configuration**: Adaptable to different document types and use cases
 - **RAG Optimization**: Designed specifically for Retrieval-Augmented Generation workflows
+
+## Changelog
+
+### v0.3.0 - Zero External Dependencies
+- ✅ **Breaking Change**: Removed external LangChain dependencies
+- ✅ **Improved**: Now uses n8n's built-in LangChain modules
+- ✅ **Enhanced**: Better compatibility with n8n Cloud
+- ✅ **Faster**: No external package installation required
+- ✅ **Reliable**: Dependencies managed by n8n core team
+
+### v0.2.2 - Previous Version
+- Used external `@langchain/core` and `@langchain/textsplitters` dependencies
 
 ## License
 

@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-semantic-splitter-with-context",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "Semantic Splitter with Context for n8n with LangChain integration",
   "keywords": [
     "n8n-community-node-package",
@@ -57,14 +57,14 @@
     "gulp": "^5.0.0",
     "n8n-workflow": "*",
     "prettier": "^3.2.5",
-    "typescript": "^5.3.3"
-  },
-  "dependencies": {
-    "@langchain/core": "^0.3.57",
-    "@langchain/textsplitters": "^0.1.0"
+    "typescript": "^5.3.3",
+    "@langchain/core": "*",
+    "@langchain/textsplitters": "*"
   },
   "peerDependencies": {
-    "n8n-workflow": "^1.25.1"
+    "n8n-workflow": "^1.25.1",
+    "@langchain/core": "*",
+    "@langchain/textsplitters": "*"
   },
   "engines": {
     "node": ">=18.0.0"

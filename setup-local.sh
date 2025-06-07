@@ -22,11 +22,36 @@ echo "📁 Working from: $ROOT_DIR"
 # Array of node directories
 NODE_DIRS=(
     "n8n-nodes-contextual-document-loader"
-    "n8n-nodes-semantic-text-splitter"
     "n8n-nodes-google-gemini-embeddings-extended"
     "n8n-nodes-google-vertex-embeddings-extended"
     "n8n-nodes-semantic-splitter-with-context"
 )
+
+# Function to check and fix package structure
+check_and_fix_package() {
+    local dir="$1"
+    echo "    Checking package structure for $dir..."
+    
+    # Check if package.json has main field
+    local has_main=$(node -p "require('./package.json').main ? 'true' : 'false'" 2>/dev/null)
+    if [ "$has_main" = "false" ]; then
+        echo "    Adding missing 'main' field to package.json..."
+        # Add main field after publishConfig
+        sed -i '' 's/"publishConfig": {/"publishConfig": {\
+    "access": "public"\
+  },\
+  "main": "index.js",/' package.json
+    fi
+    
+    # Check if index.js exists
+    if [ ! -f "index.js" ]; then
+        echo "    Creating missing index.js file..."
+        echo "// This file is required for n8n to load the node package" > index.js
+        echo "module.exports = {};" >> index.js
+    fi
+    
+    return 0
+}
 
 # Function to check if a node builds successfully
 check_build() {
@@ -61,6 +86,9 @@ for dir in "${NODE_DIRS[@]}"; do
         # Install dependencies
         echo "    Installing dependencies..."
         npm install > /dev/null 2>&1
+        
+        # Check and fix package structure
+        check_and_fix_package "$dir"
         
         # Check if build works
         if check_build "$dir"; then
@@ -97,22 +125,68 @@ else
     cd "$N8N_CUSTOM_DIR"
 fi
 
-# Link all successful nodes to n8n
+# Link all successful nodes to n8n using symlinks
 echo "🔗 Linking nodes to n8n..."
+cd "$N8N_CUSTOM_DIR"
+
+# Ensure node_modules directory exists
+mkdir -p node_modules
+
 for dir in "${SUCCESSFUL_NODES[@]}"; do
     # Extract package name from package.json
     PACKAGE_NAME=$(cd "$ROOT_DIR/$dir" && node -p "require('./package.json').name" 2>/dev/null)
     if [ -n "$PACKAGE_NAME" ]; then
         echo "  Linking $PACKAGE_NAME..."
-        if npm link "$PACKAGE_NAME" > /dev/null 2>&1; then
+        
+        # Remove existing link if it exists
+        if [ -L "node_modules/$PACKAGE_NAME" ] || [ -d "node_modules/$PACKAGE_NAME" ]; then
+            rm -rf "node_modules/$PACKAGE_NAME"
+        fi
+        
+        # Create symlink directly
+        ln -sf "$ROOT_DIR/$dir" "node_modules/$PACKAGE_NAME"
+        
+        if [ -L "node_modules/$PACKAGE_NAME" ]; then
             echo "  ✅ Successfully linked $PACKAGE_NAME"
         else
-            echo "  ⚠️  Failed to link $PACKAGE_NAME"
+            echo "  ❌ Failed to link $PACKAGE_NAME"
         fi
     else
         echo "  ⚠️  Could not determine package name for $dir"
     fi
 done
+
+# Update package.json to include all linked packages  
+echo "📝 Updating package.json with dependencies..."
+PACKAGE_JSON="$N8N_CUSTOM_DIR/package.json"
+
+if [ -f "$PACKAGE_JSON" ]; then
+    # Create a temporary file with updated dependencies
+    cat "$PACKAGE_JSON" | node -e "
+        const fs = require('fs');
+        const packageJson = JSON.parse(fs.readFileSync(0, 'utf8'));
+        
+        // Initialize dependencies if it doesn't exist
+        if (!packageJson.dependencies) {
+            packageJson.dependencies = {};
+        }
+        
+        // Add all successful nodes as dependencies
+        const nodes = process.argv.slice(1);
+        nodes.forEach(dir => {
+            try {
+                const nodePackageJson = JSON.parse(fs.readFileSync(\`$ROOT_DIR/\${dir}/package.json\`, 'utf8'));
+                packageJson.dependencies[nodePackageJson.name] = \`file:./node_modules/\${nodePackageJson.name}\`;
+            } catch (e) {
+                console.error('Error reading package.json for', dir);
+            }
+        });
+        
+        console.log(JSON.stringify(packageJson, null, 2));
+    " "${SUCCESSFUL_NODES[@]}" > "$PACKAGE_JSON.tmp"
+    
+    mv "$PACKAGE_JSON.tmp" "$PACKAGE_JSON"
+fi
 
 # Return to root directory
 cd "$ROOT_DIR"

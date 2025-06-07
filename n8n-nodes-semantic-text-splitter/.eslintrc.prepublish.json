@@ -1,6 +1,0 @@
-{
-  "extends": "./.eslintrc.js",
-  "rules": {
-    "n8n-nodes-base/cred-class-field-documentation-url-missing": "off"
-  }
-} 

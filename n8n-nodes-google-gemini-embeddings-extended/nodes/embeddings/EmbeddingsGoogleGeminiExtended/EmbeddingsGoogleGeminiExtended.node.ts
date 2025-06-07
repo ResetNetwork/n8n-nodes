@@ -8,6 +8,7 @@ import {
 
 import { GoogleGenerativeAIEmbeddings } from '@langchain/google-genai';
 import { getConnectionHintNoticeField } from '../../utils/sharedFields';
+import { logWrapper } from '../../utils/logWrapper';
 
 export class EmbeddingsGoogleGeminiExtended implements INodeType {
 	description: INodeTypeDescription = {
@@ -143,8 +144,9 @@ export class EmbeddingsGoogleGeminiExtended implements INodeType {
 	};
 
 	async supplyData(this: ISupplyDataFunctions): Promise<SupplyData> {
-		const credentials = await this.getCredentials('googlePalmApi');
+		console.log('GoogleGeminiEmbeddings: supplyData called!');
 		
+		const credentials = await this.getCredentials('googlePalmApi');
 		const modelName = this.getNodeParameter('model', 0) as string;
 		const outputDimensions = this.getNodeParameter('outputDimensions', 0, 0) as number;
 		const options = this.getNodeParameter('options', 0, {}) as {
@@ -154,112 +156,25 @@ export class EmbeddingsGoogleGeminiExtended implements INodeType {
 			batchSize?: number;
 		};
 
-		// Create a custom embeddings class that extends GoogleGenerativeAIEmbeddings
-		class GoogleGeminiEmbeddingsExtended extends GoogleGenerativeAIEmbeddings {
-			private outputDimensions: number;
-			private customTaskType?: string;
-			private customTitle?: string;
-			private customBatchSize: number;
-
-			constructor(config: any) {
-				super(config);
-				this.outputDimensions = config.outputDimensions || 0;
-				this.customTaskType = config.taskType;
-				this.customTitle = config.title;
-				this.customBatchSize = config.batchSize || 100;
-			}
-
-			async embedDocuments(texts: string[]): Promise<number[][]> {
-				const embeddings: number[][] = [];
-				
-				// Special handling for gemini-embedding-001 which only supports one input at a time
-				if (this.model === 'gemini-embedding-001') {
-					for (const text of texts) {
-						const result = await this._embed([text]);
-						embeddings.push(...result);
-					}
-				} else {
-					// Process in batches for other models
-					for (let i = 0; i < texts.length; i += this.customBatchSize) {
-						const batch = texts.slice(i, i + this.customBatchSize);
-						const batchResults = await this._embed(batch);
-						embeddings.push(...batchResults);
-					}
-				}
-				
-				return embeddings;
-			}
-
-			private async _embed(texts: string[]): Promise<number[][]> {
-				const apiKey = this.apiKey;
-				const model = this.model;
-				
-				// Construct the API endpoint
-				const apiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:embedContent`;
-				
-				const embeddings: number[][] = [];
-				
-				for (const text of texts) {
-					const requestBody: any = {
-						model: `models/${model}`,
-						content: {
-							parts: [{
-								text: this.stripNewLines ? text.replace(/\n/g, ' ') : text,
-							}],
-						},
-					};
-					
-					// Add task type if specified
-					if (this.customTaskType) {
-						requestBody.taskType = this.customTaskType;
-					}
-					
-					// Add title if specified and task type is RETRIEVAL_DOCUMENT
-					if (this.customTitle && this.customTaskType === 'RETRIEVAL_DOCUMENT') {
-						requestBody.title = this.customTitle;
-					}
-					
-					// Add output dimensions if specified and greater than 0
-					if (this.outputDimensions > 0) {
-						requestBody.outputDimensionality = this.outputDimensions;
-					}
-					
-					const response = await fetch(`${apiEndpoint}?key=${apiKey}`, {
-						method: 'POST',
-						headers: {
-							'Content-Type': 'application/json',
-						},
-						body: JSON.stringify(requestBody),
-					});
-					
-					if (!response.ok) {
-						const errorText = await response.text();
-						throw new Error(`Google Gemini API error: ${response.statusText} - ${errorText}`);
-					}
-					
-					const data = await response.json() as any;
-					
-					if (data.embedding && data.embedding.values) {
-						embeddings.push(data.embedding.values);
-					}
-				}
-				
-				return embeddings;
-			}
-		}
-
-		const embeddings = new GoogleGeminiEmbeddingsExtended({
+		// Create embeddings instance using LangChain's GoogleGenerativeAIEmbeddings
+		const embeddings = new GoogleGenerativeAIEmbeddings({
 			apiKey: credentials.apiKey as string,
-			model: modelName,
-			outputDimensions: outputDimensions,
-			taskType: options.taskType,
-			title: options.title,
+			modelName: modelName,
+			...(outputDimensions > 0 && { outputDimensionality: outputDimensions }),
+			...(options.taskType && { taskType: options.taskType as any }),
+			...(options.title && { title: options.title }),
 			stripNewLines: options.stripNewLines !== false,
-			batchSize: options.batchSize,
+			maxConcurrency: 1,
+			maxRetries: 3,
 		});
 
+		// Return the embeddings instance wrapped with logging for visual feedback
+		console.log('GoogleGeminiEmbeddings: About to wrap embeddings with logWrapper');
+		const wrappedEmbeddings = logWrapper(embeddings, this);
+		console.log('GoogleGeminiEmbeddings: Wrapped embeddings created');
+		
 		return {
-			response: embeddings,
+			response: wrappedEmbeddings,
 		};
 	}
 } 

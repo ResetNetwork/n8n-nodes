@@ -13,10 +13,9 @@ ROOT_DIR=$(pwd)
 # Array of node directories
 NODE_DIRS=(
     "n8n-nodes-contextual-document-loader"
-    "n8n-nodes-semantic-text-splitter"
     "n8n-nodes-google-gemini-embeddings-extended"
     "n8n-nodes-google-vertex-embeddings-extended"
-    "n8n-nodes-documentloader"
+    "n8n-nodes-semantic-splitter-with-context"
 )
 
 # n8n custom directory

@@ -10,6 +10,7 @@ import { Document } from '@langchain/core/documents';
 import { Embeddings } from '@langchain/core/embeddings';
 import { BaseLanguageModel } from '@langchain/core/language_models/base';
 import { TextSplitter } from '@langchain/textsplitters';
+import { logWrapper } from '../../utils/logWrapper';
 
 // Custom implementation of Semantic Double-Pass Merging splitter with context
 class SemanticDoublePassMergingSplitterWithContext extends TextSplitter {
@@ -475,7 +476,7 @@ ${this.contextPrompt}`;
 export class SemanticSplitterWithContext implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Semantic Splitter with Context',
-		name: 'contextualSemanticTextSplitter',
+		name: 'contextualSemanticTextSplitterWithContext',
 		icon: 'fa:cut',
 		group: ['transform'],
 		version: 1,
@@ -640,6 +641,8 @@ export class SemanticSplitterWithContext implements INodeType {
 	};
 
 	async supplyData(this: ISupplyDataFunctions, itemIndex: number): Promise<SupplyData> {
+		console.log('ContextualSemanticSplitter: supplyData called!');
+		
 		const chatModel = (await this.getInputConnectionData(
 			NodeConnectionType.AiLanguageModel,
 			itemIndex,
@@ -677,9 +680,13 @@ export class SemanticSplitterWithContext implements INodeType {
 			includeLabels,
 		});
 
-		// Return the splitter instance directly
+		// Return the splitter instance wrapped with logging for visual feedback
+		console.log('ContextualSemanticSplitter: About to wrap splitter with logWrapper');
+		const wrappedSplitter = logWrapper(splitter, this);
+		console.log('ContextualSemanticSplitter: Wrapped splitter created');
+		
 		return {
-			response: splitter,
+			response: wrappedSplitter,
 		};
 	}
 } 
