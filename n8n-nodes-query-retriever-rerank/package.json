@@ -1,7 +1,7 @@
 {
   "name": "n8n-nodes-query-retriever-rerank",
   "version": "0.3.0",
-  "description": "n8n community node with multi-query strategies, intelligent reranking, and comprehensive debugging for vector store retrieval",
+  "description": "Advanced n8n community node with multi-query strategies, intelligent reranking, and comprehensive debugging for vector store retrieval",
   "keywords": [
     "n8n-community-node-package",
     "vector-store",
@@ -33,7 +33,7 @@
   },
   "main": "index.js",
   "scripts": {
-    "build": "tsc && mkdir -p dist/nodes/tools/QueryRetrieverRerank && cp -r nodes/tools/QueryRetrieverRerank/*.svg dist/nodes/tools/QueryRetrieverRerank/ 2>/dev/null || true",
+    "build": "tsc",
     "dev": "tsc --watch",
     "format": "prettier nodes --write",
     "lint": "eslint nodes/**/*.ts",
@@ -46,7 +46,7 @@
   "n8n": {
     "n8nNodesApiVersion": 1,
     "nodes": [
-      "dist/nodes/tools/QueryRetrieverRerank/QueryRetrieverRerank.node.js"
+      "dist/tools/QueryRetrieverRerank/QueryRetrieverRerank.node.js"
     ]
   },
   "devDependencies": {
