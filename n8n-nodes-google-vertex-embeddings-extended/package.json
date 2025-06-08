@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-google-vertex-embeddings-extended",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "n8n community sub-node for Google Vertex AI Embeddings with output dimensions support - use with vector stores",
   "keywords": [
     "n8n-community-node-package",
@@ -31,7 +31,7 @@
   },
   "main": "index.js",
   "scripts": {
-    "build": "tsc && mkdir -p dist/nodes/embeddings/EmbeddingsGoogleVertexExtended && cp -r nodes/embeddings/EmbeddingsGoogleVertexExtended/*.svg dist/nodes/embeddings/EmbeddingsGoogleVertexExtended/ 2>/dev/null || true",
+    "build": "tsc && mkdir -p dist/nodes/embeddings/EmbeddingsGoogleVertexExtended && cp nodes/utils/noun-embedded-6256003.svg dist/nodes/embeddings/EmbeddingsGoogleVertexExtended/ 2>/dev/null || true",
     "dev": "tsc --watch",
     "format": "prettier nodes --write",
     "lint": "eslint nodes --ext .ts",

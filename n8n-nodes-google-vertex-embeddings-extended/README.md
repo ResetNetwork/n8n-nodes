@@ -174,6 +174,18 @@ For issues and feature requests, please use the [GitHub issue tracker](https://g
 
 ## Changelog
 
+### 0.5.1
+- **Fixed authentication issues** - Resolved project ID loading and credential authentication problems
+- **Added visual feedback** - Green connection lines and completion indicators for better workflow visualization  
+- **Improved reliability** - Uses proven authentication pattern with google-auth-library for consistent Google Cloud API access
+- **Enhanced user experience** - Node now properly displays connection status and processing feedback
+- **Maintained compatibility** - Preserves all existing functionality while fixing authentication bugs
+
+### 0.5.0
+- Updated to use @langchain/community package for better compatibility
+- Added logWrapper for visual workflow feedback
+- Improved error handling and logging
+
 ### 0.3.4
 - Updated dependencies to latest compatible versions
 - Updated @langchain/google-vertexai from 0.0.21 to 0.2.10

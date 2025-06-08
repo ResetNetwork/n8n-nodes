@@ -1,16 +1,18 @@
 {
-  "name": "n8n-nodes-tool-vector-store-extended",
-  "version": "0.1.0",
-  "description": "n8n community node for Vector Store Question Answer Tool with extended features and visual feedback",
+  "name": "n8n-nodes-enhanced-query-retriever-rerank-tool",
+  "version": "0.3.0",
+  "description": "Advanced n8n community node with multi-query strategies, intelligent reranking, and comprehensive debugging for vector store retrieval",
   "keywords": [
     "n8n-community-node-package",
     "vector-store",
-    "tool",
+    "multi-query",
+    "reranking",
     "ai",
     "langchain",
     "question-answer",
-    "qa",
-    "retrieval"
+    "retrieval",
+    "debugging",
+    "enhanced"
   ],
   "license": "MIT",
   "homepage": "https://github.com/ResetNetwork/n8n-nodes#readme",
@@ -21,7 +23,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ResetNetwork/n8n-nodes.git",
-    "directory": "n8n-nodes-tool-vector-store-extended"
+    "directory": "n8n-nodes-enhanced-query-retriever-rerank-tool"
   },
   "bugs": {
     "url": "https://github.com/ResetNetwork/n8n-nodes/issues"
@@ -31,7 +33,7 @@
   },
   "main": "index.js",
   "scripts": {
-    "build": "tsc && mkdir -p dist/nodes/tools/ToolVectorStoreExtended && cp -r nodes/tools/ToolVectorStoreExtended/*.svg dist/nodes/tools/ToolVectorStoreExtended/ 2>/dev/null || true",
+    "build": "tsc && mkdir -p dist/nodes/tools/EnhancedQueryRetrieverReRankTool && cp -r nodes/tools/EnhancedQueryRetrieverReRankTool/*.svg dist/nodes/tools/EnhancedQueryRetrieverReRankTool/ 2>/dev/null || true",
     "dev": "tsc --watch",
     "format": "prettier nodes --write",
     "lint": "eslint nodes/**/*.ts",
@@ -44,7 +46,7 @@
   "n8n": {
     "n8nNodesApiVersion": 1,
     "nodes": [
-      "dist/nodes/tools/ToolVectorStoreExtended/ToolVectorStoreExtended.node.js"
+      "dist/nodes/tools/EnhancedQueryRetrieverReRankTool/EnhancedQueryRetrieverReRankTool.node.js"
     ]
   },
   "devDependencies": {

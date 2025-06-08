@@ -16,7 +16,6 @@ export class EmbeddingsGoogleVertexExtended implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Embeddings Google Vertex Extended',
 		name: 'embeddingsGoogleVertexExtended',
-		icon: 'file:GoogleVertexAI.svg',
 		group: ['transform'],
 		version: 1,
 		description: 'Use Google Vertex AI Embeddings with output dimensions support',

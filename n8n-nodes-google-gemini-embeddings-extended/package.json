@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-google-gemini-embeddings-extended",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "n8n community sub-node for Google Gemini Embeddings with extended features like output dimensions support",
   "keywords": [
     "n8n-community-node-package",
@@ -31,7 +31,7 @@
   },
   "main": "index.js",
   "scripts": {
-    "build": "tsc && mkdir -p dist/nodes/embeddings/EmbeddingsGoogleGeminiExtended && cp -r nodes/embeddings/EmbeddingsGoogleGeminiExtended/*.svg dist/nodes/embeddings/EmbeddingsGoogleGeminiExtended/ 2>/dev/null || true",
+    "build": "tsc && mkdir -p dist/nodes/embeddings/EmbeddingsGoogleGeminiExtended && cp nodes/utils/noun-embedded-6256003.svg dist/nodes/embeddings/EmbeddingsGoogleGeminiExtended/ 2>/dev/null || true",
     "dev": "tsc --watch",
     "format": "prettier nodes --write",
     "lint": "eslint nodes --ext .ts",
