@@ -1,7 +1,7 @@
 {
-  "name": "n8n-nodes-enhanced-query-retriever-rerank-tool",
+  "name": "n8n-nodes-query-retriever-rerank",
   "version": "0.3.0",
-  "description": "Advanced n8n community node with multi-query strategies, intelligent reranking, and comprehensive debugging for vector store retrieval",
+  "description": "n8n community node with multi-query strategies, intelligent reranking, and comprehensive debugging for vector store retrieval",
   "keywords": [
     "n8n-community-node-package",
     "vector-store",
@@ -23,7 +23,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ResetNetwork/n8n-nodes.git",
-    "directory": "n8n-nodes-enhanced-query-retriever-rerank-tool"
+    "directory": "n8n-nodes-query-retriever-rerank"
   },
   "bugs": {
     "url": "https://github.com/ResetNetwork/n8n-nodes/issues"
@@ -33,7 +33,7 @@
   },
   "main": "index.js",
   "scripts": {
-    "build": "tsc && mkdir -p dist/nodes/tools/EnhancedQueryRetrieverReRankTool && cp -r nodes/tools/EnhancedQueryRetrieverReRankTool/*.svg dist/nodes/tools/EnhancedQueryRetrieverReRankTool/ 2>/dev/null || true",
+    "build": "tsc && mkdir -p dist/nodes/tools/QueryRetrieverRerank && cp -r nodes/tools/QueryRetrieverRerank/*.svg dist/nodes/tools/QueryRetrieverRerank/ 2>/dev/null || true",
     "dev": "tsc --watch",
     "format": "prettier nodes --write",
     "lint": "eslint nodes/**/*.ts",
@@ -46,7 +46,7 @@
   "n8n": {
     "n8nNodesApiVersion": 1,
     "nodes": [
-      "dist/nodes/tools/EnhancedQueryRetrieverReRankTool/EnhancedQueryRetrieverReRankTool.node.js"
+      "dist/nodes/tools/QueryRetrieverRerank/QueryRetrieverRerank.node.js"
     ]
   },
   "devDependencies": {

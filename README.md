@@ -12,7 +12,7 @@ All packages are published to npm under the `@resetnetwork` scope and can be ins
 | [`n8n-nodes-semantic-text-splitter`](./n8n-nodes-semantic-text-splitter) | ![npm](https://img.shields.io/npm/v/n8n-nodes-semantic-text-splitter) | Semantic double-pass merging text splitting with embeddings-based chunking |
 | [`n8n-nodes-google-gemini-embeddings-extended`](./n8n-nodes-google-gemini-embeddings-extended) | ![npm](https://img.shields.io/npm/v/n8n-nodes-google-gemini-embeddings-extended) | Google Gemini Embeddings with extended features like output dimensions support |
 | [`n8n-nodes-google-vertex-embeddings-extended`](./n8n-nodes-google-vertex-embeddings-extended) | ![npm](https://img.shields.io/npm/v/n8n-nodes-google-vertex-embeddings-extended) | Google Vertex AI Embeddings with output dimensions support |
-| [`n8n-nodes-enhanced-query-retriever-rerank-tool`](./n8n-nodes-enhanced-query-retriever-rerank-tool) | ![npm](https://img.shields.io/npm/v/n8n-nodes-enhanced-query-retriever-rerank-tool) | Advanced query retrieval tool with multi-query strategies, intelligent reranking, and comprehensive debugging |
+| [`n8n-nodes-query-retriever-rerank`](./n8n-nodes-query-retriever-rerank) | ![npm](https://img.shields.io/npm/v/n8n-nodes-query-retriever-rerank) | Query retrieval tool with multi-query strategies, intelligent reranking, and comprehensive debugging |
 | [`n8n-nodes-documentloader`](./n8n-nodes-documentloader) | ![npm](https://img.shields.io/npm/v/n8n-nodes-documentloader) | Fully functional document loader that replicates the official DocumentDefaultDataLoader functionality with LangChain integration |
 
 ## 🚀 Quick Start
@@ -26,7 +26,7 @@ Each node can be installed individually via npm:
 npm install n8n-nodes-contextual-document-loader
 
 # Or install multiple nodes
-npm install n8n-nodes-contextual-document-loader n8n-nodes-semantic-text-splitter n8n-nodes-enhanced-query-retriever-rerank-tool
+npm install n8n-nodes-contextual-document-loader n8n-nodes-semantic-text-splitter n8n-nodes-query-retriever-rerank
 ```
 
 ### Development Setup
@@ -228,7 +228,7 @@ After installation, verify the nodes appear in n8n:
    - **Semantic Double-Pass Text Splitter** (search for "semantic")
    - **Google Gemini Embeddings Extended** (search for "gemini")
    - **Google Vertex Embeddings Extended** (search for "vertex")
-   - **Enhanced Query Retriever with ReRank Tool** (search for "enhanced query" or "rerank")
+   - **Query Retriever with Rerank** (search for "query retriever" or "rerank")
    - **Document Loader** (search for "document loader")
 
 ### Development Testing

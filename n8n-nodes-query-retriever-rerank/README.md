@@ -1,4 +1,4 @@
-# Enhanced Query Retriever with ReRank Tool
+# Query Retriever with Rerank
 
 This package provides a vector store retrieval tool for n8n with intelligent multi-query strategies, semantic reranking, and comprehensive debugging capabilities.
 
@@ -18,7 +18,7 @@ This package provides a vector store retrieval tool for n8n with intelligent mul
 
 1. Go to **Settings** > **Community Nodes**
 2. Select **Install**
-3. Enter `n8n-nodes-semantic-splitter-with-context` in the search field
+3. Enter `n8n-nodes-query-retriever-rerank` in the search field
 4. Select **Install**
 
 ### Prerequisites
@@ -32,7 +32,7 @@ This package provides a vector store retrieval tool for n8n with intelligent mul
 1. Clone the repository:
 ```bash
 git clone <repository-url>
-cd n8n-nodes-semantic-splitter-with-context
+cd n8n-nodes-query-retriever-rerank
 ```
 
 2. Install dependencies:
@@ -49,7 +49,7 @@ npm run build
 ```bash
 npm link
 cd ~/.n8n/custom
-npm link n8n-nodes-semantic-splitter-with-context
+npm link n8n-nodes-query-retriever-rerank
 ```
 
 5. Start n8n:
@@ -75,7 +75,7 @@ n8n start
 
 This tool provides significant advances over n8n's built-in Vector Store Tool:
 
-| Feature | Built-in | Enhanced |
+| Feature | Built-in | Query Retriever with Rerank |
 |---------|----------|----------|
 | Basic QA functionality | ✅ | ✅ |
 | Multi-query strategies | ❌ | ✅ |
@@ -175,7 +175,7 @@ This node provides the same visual feedback as n8n's built-in nodes:
 ```bash
 # Clone the repository
 git clone https://github.com/ResetNetwork/n8n-nodes.git
-cd n8n-nodes/n8n-nodes-tool-vector-store-extended
+cd n8n-nodes/n8n-nodes-query-retriever-rerank
 
 # Install dependencies
 npm install

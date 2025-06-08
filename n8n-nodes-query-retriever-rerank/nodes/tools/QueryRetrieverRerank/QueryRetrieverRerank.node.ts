@@ -13,15 +13,15 @@ import type { Embeddings } from '@langchain/core/embeddings';
 import { getConnectionHintNoticeField } from '../../utils/sharedFields';
 import { logWrapper } from '../../utils/logWrapper';
 
-export class EnhancedQueryRetrieverReRankTool implements INodeType {
+export class QueryRetrieverRerank implements INodeType {
 	description: INodeTypeDescription = {
-		displayName: 'Enhanced Query Retriever with ReRank Tool',
-		name: 'enhancedQueryRetrieverReRankTool',
+		displayName: 'Query Retriever with Rerank',
+		name: 'queryRetrieverRerank',
 		group: ['transform'],
 		version: 1,
-		description: 'Advanced query retrieval tool with multi-query strategies, intelligent reranking, and comprehensive debugging',
+		description: 'Query retrieval tool with multi-query strategies, intelligent reranking, and comprehensive debugging',
 		defaults: {
-			name: 'Enhanced Query Retriever with ReRank Tool',
+			name: 'Query Retriever with Rerank',
 		},
 		codex: {
 			categories: ['AI'],
