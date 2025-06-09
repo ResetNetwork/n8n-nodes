@@ -5,7 +5,8 @@ This is an n8n community sub-node that provides Google Vertex AI Embeddings with
 ## Features
 
 - Support for any Google Vertex AI embedding model (specify by name)
-- **Output dimensions configuration** (for supported models like text-embedding-004)
+- **Output dimensions configuration** (for supported models like gemini-embedding-001)
+- **Batch size control** to support models that only allow one document per request
 - Task type specification for optimized embeddings
 - Region selection
 - Project ID dropdown with auto-loading from your Google account
