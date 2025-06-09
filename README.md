@@ -8,12 +8,11 @@ All packages are published to npm under the `@resetnetwork` scope and can be ins
 
 | Package | Version | Description |
 |---------|---------|-------------|
-| [`n8n-nodes-contextual-document-loader`](./n8n-nodes-contextual-document-loader) | ![npm](https://img.shields.io/npm/v/n8n-nodes-contextual-document-loader) | Document loading with contextual retrieval support |
-| [`n8n-nodes-semantic-text-splitter`](./n8n-nodes-semantic-text-splitter) | ![npm](https://img.shields.io/npm/v/n8n-nodes-semantic-text-splitter) | Semantic double-pass merging text splitting with embeddings-based chunking |
+| [`n8n-nodes-contextual-document-loader`](./n8n-nodes-contextual-document-loader) | ![npm](https://img.shields.io/npm/v/n8n-nodes-contextual-document-loader) | ⚠️ **DEPRECATED** - Use `n8n-nodes-semantic-splitter-with-context` instead |
+| [`n8n-nodes-semantic-splitter-with-context`](./n8n-nodes-semantic-splitter-with-context) | ![npm](https://img.shields.io/npm/v/n8n-nodes-semantic-splitter-with-context) | Semantic text splitter with contextual information for enhanced document processing |
 | [`n8n-nodes-google-gemini-embeddings-extended`](./n8n-nodes-google-gemini-embeddings-extended) | ![npm](https://img.shields.io/npm/v/n8n-nodes-google-gemini-embeddings-extended) | Google Gemini Embeddings with extended features like output dimensions support |
-| [`n8n-nodes-google-vertex-embeddings-extended`](./n8n-nodes-google-vertex-embeddings-extended) | ![npm](https://img.shields.io/npm/v/n8n-nodes-google-vertex-embeddings-extended) | Google Vertex AI Embeddings with output dimensions support |
-| [`n8n-nodes-query-retriever-rerank`](./n8n-nodes-query-retriever-rerank) | ![npm](https://img.shields.io/npm/v/n8n-nodes-query-retriever-rerank) | Query retrieval tool with multi-query strategies, intelligent reranking, and comprehensive debugging |
-| [`n8n-nodes-documentloader`](./n8n-nodes-documentloader) | ![npm](https://img.shields.io/npm/v/n8n-nodes-documentloader) | Fully functional document loader that replicates the official DocumentDefaultDataLoader functionality with LangChain integration |
+| [`n8n-nodes-google-vertex-embeddings-extended`](./n8n-nodes-google-vertex-embeddings-extended) | ![npm](https://img.shields.io/npm/v/n8n-nodes-google-vertex-embeddings-extended) | Google Vertex AI Embeddings with output dimensions and configurable batch size support |
+| [`n8n-nodes-query-retriever-rerank`](./n8n-nodes-query-retriever-rerank) | ![npm](https://img.shields.io/npm/v/n8n-nodes-query-retriever-rerank) | Advanced query retrieval with multi-step reasoning, reranking, and comprehensive debugging |
 
 ## 🚀 Quick Start
 
@@ -23,10 +22,10 @@ Each node can be installed individually via npm:
 
 ```bash
 # Install a specific node
-npm install n8n-nodes-contextual-document-loader
+npm install n8n-nodes-semantic-splitter-with-context
 
 # Or install multiple nodes
-npm install n8n-nodes-contextual-document-loader n8n-nodes-semantic-text-splitter n8n-nodes-query-retriever-rerank
+npm install n8n-nodes-semantic-splitter-with-context n8n-nodes-google-gemini-embeddings-extended n8n-nodes-query-retriever-rerank
 ```
 
 ### Development Setup
@@ -93,7 +92,7 @@ You can also work with individual packages:
 
 ```bash
 # Work on a specific package
-cd n8n-nodes-contextual-document-loader
+cd n8n-nodes-semantic-splitter-with-context
 
 # Install dependencies for this package only
 npm install
@@ -165,11 +164,10 @@ If you prefer manual setup:
    npm init -y
 
    # Link each package
-   npm link n8n-nodes-contextual-document-loader
-   npm link n8n-nodes-semantic-text-splitter
+   npm link n8n-nodes-semantic-splitter-with-context
    npm link n8n-nodes-google-gemini-embeddings-extended
    npm link n8n-nodes-google-vertex-embeddings-extended
-   npm link n8n-nodes-documentloader
+   npm link n8n-nodes-query-retriever-rerank
    ```
 
 5. **Start n8n**:
@@ -190,7 +188,7 @@ If you prefer manual setup:
 To publish a single package:
 
 ```bash
-cd n8n-nodes-contextual-document-loader
+cd n8n-nodes-semantic-splitter-with-context
 npm publish --access public
 ```
 
@@ -212,7 +210,7 @@ This will:
 Before publishing, update the version in the package's `package.json`:
 
 ```bash
-cd n8n-nodes-contextual-document-loader
+cd n8n-nodes-semantic-splitter-with-context
 npm version patch  # or minor, major
 ```
 
@@ -224,12 +222,10 @@ After installation, verify the nodes appear in n8n:
 
 1. Open n8n in your browser (typically at http://localhost:5678)
 2. Search for the following nodes in the nodes panel:
-   - **Contextual Document Loader** (search for "contextual")
-   - **Semantic Double-Pass Text Splitter** (search for "semantic")
+   - **Semantic Splitter with Context** (search for "semantic splitter")
    - **Google Gemini Embeddings Extended** (search for "gemini")
    - **Google Vertex Embeddings Extended** (search for "vertex")
    - **Query Retriever with Rerank** (search for "query retriever" or "rerank")
-   - **Document Loader** (search for "document loader")
 
 ### Development Testing
 
