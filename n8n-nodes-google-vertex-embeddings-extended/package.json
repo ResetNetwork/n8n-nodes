@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-google-vertex-embeddings-extended",
-  "version": "0.6.1",
+  "version": "0.8.0",
   "description": "n8n community sub-node for Google Vertex AI Embeddings with output dimensions and configurable batch size support - resolves LangChain compatibility issues",
   "keywords": [
     "n8n-community-node-package",
@@ -63,7 +63,7 @@
     "google-auth-library": "^9.15.0"
   },
   "peerDependencies": {
-    "@langchain/community": "*",
+    "@langchain/google-vertexai": "^0.2.10",
     "n8n-workflow": "^1.82.0"
   }
 }

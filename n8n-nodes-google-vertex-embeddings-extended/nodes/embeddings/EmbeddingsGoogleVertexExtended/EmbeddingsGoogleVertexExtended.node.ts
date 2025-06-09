@@ -8,24 +8,7 @@ import {
 	INodePropertyOptions,
 } from 'n8n-workflow';
 
-// Try different import paths for compatibility
-let GoogleVertexAIEmbeddings: any;
-try {
-	// Try the newer import path first
-	GoogleVertexAIEmbeddings = require('@langchain/community/embeddings/googlevertexai').GoogleVertexAIEmbeddings;
-} catch (e1) {
-	try {
-		// Fall back to older import paths
-		GoogleVertexAIEmbeddings = require('@langchain/community/embeddings/googlevertexai/web').GoogleVertexAIEmbeddings;
-	} catch (e2) {
-		try {
-			GoogleVertexAIEmbeddings = require('@langchain/community').GoogleVertexAIEmbeddings;
-		} catch (e3) {
-			throw new Error('GoogleVertexAIEmbeddings not found in @langchain/community. Please ensure you have a compatible version installed.');
-		}
-	}
-}
-import { getConnectionHintNoticeField } from '../../utils/sharedFields';
+import { VertexAIEmbeddings } from '@langchain/google-vertexai';
 import { logWrapper } from '../../utils/logWrapper';
 
 export class EmbeddingsGoogleVertexExtended implements INodeType {
@@ -214,8 +197,8 @@ export class EmbeddingsGoogleVertexExtended implements INodeType {
 		// Format private key like the official node does
 		const privateKey = (credentials.privateKey as string).replace(/\\n/g, '\n');
 
-		// Create base embeddings instance
-		const baseEmbeddings = new GoogleVertexAIEmbeddings({
+		// Create base embeddings instance using LangChain's VertexAIEmbeddings (like official node)
+		const baseEmbeddings = new VertexAIEmbeddings({
 			authOptions: {
 				projectId,
 				credentials: {
@@ -229,13 +212,13 @@ export class EmbeddingsGoogleVertexExtended implements INodeType {
 			...(options.taskType && { taskType: options.taskType as any }),
 		});
 
-		// Create wrapper that fixes LangChain's hardcoded batch size of 5
+		// Create wrapper that handles configurable batch size
 		// LangChain assumes Vertex AI supports batch size 5, but it actually only supports 1
-		class FixedBatchVertexAIEmbeddings {
-			private baseEmbeddings: any;
+		class BatchAwareVertexAIEmbeddings {
+			private baseEmbeddings: VertexAIEmbeddings;
 			private batchSize: number;
 
-			constructor(baseEmbeddings: any, batchSize: number) {
+			constructor(baseEmbeddings: VertexAIEmbeddings, batchSize: number) {
 				this.baseEmbeddings = baseEmbeddings;
 				this.batchSize = batchSize;
 			}
@@ -278,7 +261,7 @@ export class EmbeddingsGoogleVertexExtended implements INodeType {
 		}
 
 		// Create embeddings instance with configurable batch size
-		const embeddings = new FixedBatchVertexAIEmbeddings(baseEmbeddings, batchSize);
+		const embeddings = new BatchAwareVertexAIEmbeddings(baseEmbeddings, batchSize);
 
 		// Return the embeddings instance wrapped with logging for visual feedback
 		console.log('GoogleVertexEmbeddings: About to wrap embeddings with logWrapper');
