@@ -63,7 +63,6 @@ export class EmbeddingsGoogleVertexExtended implements INodeType {
 		outputs: [NodeConnectionType.AiEmbedding],
 		outputNames: ['Embeddings'],
 		properties: [
-			getConnectionHintNoticeField([NodeConnectionType.AiVectorStore]),
 			{
 				displayName: 'Project ID',
 				name: 'projectId',
