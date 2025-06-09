@@ -10,6 +10,7 @@ import { DynamicTool } from '@langchain/core/tools';
 import type { BaseLanguageModel } from '@langchain/core/language_models/base';
 import type { VectorStore } from '@langchain/core/vectorstores';
 import type { Embeddings } from '@langchain/core/embeddings';
+import type { BaseMemory } from '@langchain/core/memory';
 import { getConnectionHintNoticeField } from '../../utils/sharedFields';
 import { nodeNameToToolName } from '../../utils/helpers';
 import { logWrapper } from '../../utils/logWrapper';
@@ -40,20 +41,26 @@ export class QueryRetrieverRerank implements INodeType {
 		// eslint-disable-next-line n8n-nodes-base/node-class-description-inputs-wrong-regular-node
 		inputs: [
 			{
-				displayName: 'Vector Store',
+				displayName: 'Vector',
 				maxConnections: 1,
 				type: NodeConnectionType.AiVectorStore,
 			},
 			{
-				displayName: 'Chat Model',
+				displayName: 'LLM',
 				maxConnections: 1,
 				type: NodeConnectionType.AiLanguageModel,
 			},
 			{
-				displayName: 'Embedding',
+				displayName: 'Embed',
 				maxConnections: 1,
 				type: NodeConnectionType.AiEmbedding,
 				required: true,
+			},
+			{
+				displayName: 'Debug',
+				maxConnections: 1,
+				type: NodeConnectionType.AiMemory,
+				required: false,
 			},
 		],
 		outputs: [NodeConnectionType.AiTool],
@@ -221,7 +228,19 @@ export class QueryRetrieverRerank implements INodeType {
 						name: 'debugging',
 						type: 'boolean',
 						default: false,
-						description: 'Send detailed execution metrics and AI-generated performance analysis to the connected language model. Check the Chat Model execution logs to see the debug analysis.',
+						description: 'Store detailed execution metrics in the connected memory node. Requires a memory node connection.',
+					},
+					{
+						displayName: 'LLM Debug Analysis',
+						name: 'llmDebugAnalysis',
+						type: 'boolean',
+						default: false,
+						description: 'Generate AI-powered performance analysis using the connected language model. WARNING: This will significantly slow down query response times as it requires an additional LLM call to analyze debug data.',
+						displayOptions: {
+							show: {
+								debugging: [true],
+							},
+						},
 					},
 				],
 			},
@@ -358,12 +377,14 @@ export class QueryRetrieverRerank implements INodeType {
 		};
 		const options = this.getNodeParameter('options', itemIndex, {}) as {
 			debugging?: boolean;
+			llmDebugAnalysis?: boolean;
 		};
 
 		// Get the vector store and language model from input connections
 		const vectorStore = (await this.getInputConnectionData(NodeConnectionType.AiVectorStore, itemIndex)) as VectorStore;
 		const model = (await this.getInputConnectionData(NodeConnectionType.AiLanguageModel, 0)) as BaseLanguageModel;
 		const rerankingEmbeddings = (await this.getInputConnectionData(NodeConnectionType.AiEmbedding, 0)) as Embeddings;
+		const memory = (await this.getInputConnectionData(NodeConnectionType.AiMemory, 0)) as BaseMemory | null;
 
 		if (!vectorStore) {
 			throw new Error('Vector Store input is required');
@@ -377,6 +398,62 @@ export class QueryRetrieverRerank implements INodeType {
 		if (!rerankingEmbeddings) {
 			throw new Error('Reranking Embeddings input is required for document reranking');
 		}
+
+		// Helper function to store debugging data in memory
+		const storeDebugDataInMemory = async (debugData: any, strategyType: string) => {
+			if (!options.debugging || !memory) return;
+			
+			try {
+				let analysis = null;
+				
+				// Generate LLM analysis only if enabled
+				if (options.llmDebugAnalysis) {
+					const analysisPrompt = `QUERY RETRIEVER DEBUG ANALYSIS
+
+The following debug data is from a document retrieval and reranking execution (strategy: ${strategyType}):
+
+Debug Data:
+${JSON.stringify(debugData, null, 2)}
+
+Please analyze this data and provide insights on:
+- System performance and timing
+- Strategy effectiveness 
+- Document retrieval effectiveness
+- Reranking impact
+- Areas for optimization
+
+Provide a structured analysis that could help optimize future queries.`;
+
+					const analysisResponse = await model.invoke(analysisPrompt);
+					analysis = typeof analysisResponse === 'string' ? analysisResponse : analysisResponse.content || analysisResponse.text || String(analysisResponse);
+				}
+				
+				// Create debug entry (with or without LLM analysis)
+				const debugEntry = {
+					timestamp: new Date().toISOString(),
+					query: debugData.queryDetails?.original || 'Unknown query',
+					strategy: strategyType,
+					debugData,
+					...(analysis && { analysis }),
+					summary: {
+						totalTime: debugData.timing?.total,
+						documentsRetrieved: debugData.documentFlow?.totalRetrieved,
+						finalDocuments: debugData.documentFlow?.finalCount,
+						strategy: strategyType
+					}
+				};
+				
+				// Store in memory using the saveContext method with single key-value pairs
+				const debugKey = `debug_${Date.now()}`;
+				await memory.saveContext(
+					{ input: `Debug data for query: ${debugEntry.query}` },
+					{ output: JSON.stringify(debugEntry, null, 2) }
+				);
+				
+			} catch (debugError) {
+				// Silent failure for debug storage
+			}
+		};
 
 		// Create the enhanced description  
 		const documentsToReturn = retrievalOptions.documentsToReturn || 4;
@@ -774,30 +851,8 @@ What are the main benefits and applications?`
 						debugData.timing.total = `${Date.now() - startTime}ms`;
 						debugData.documentFlow.finalCount = docs.length;
 						
-						// Handle debugging by sending analysis to the language model
-						if (options.debugging) {
-							try {
-								const analysisPrompt = `QUERY RETRIEVER DEBUG ANALYSIS
-
-The following debug data is from a document retrieval and reranking execution (strategy: none):
-
-Debug Data:
-${JSON.stringify(debugData, null, 2)}
-
-Please analyze this data and provide insights on:
-- System performance and timing
-- Document retrieval effectiveness
-- Reranking impact
-- Areas for optimization
-
-This is for debugging purposes only - do not include this analysis in your response to the user.`;
-
-								// Send debug analysis to the model (user can see this in Chat Model execution logs)
-								await model.invoke(analysisPrompt);
-							} catch (debugError) {
-								// Silent failure for debug analysis
-							}
-						}
+						// Store debugging data in memory
+						await storeDebugDataInMemory(debugData, 'none');
 						
 						const result: any = {
 							sourceDocuments: docs.map((doc: any) => ({
@@ -843,30 +898,8 @@ Answer:`;
 					debugData.timing.total = `${Date.now() - startTime}ms`;
 					debugData.documentFlow.finalCount = docs.length;
 
-					// Handle debugging by sending analysis to the language model
-					if (options.debugging) {
-						try {
-							const analysisPrompt = `QUERY RETRIEVER DEBUG ANALYSIS
-
-The following debug data is from a document retrieval and reranking execution:
-
-Debug Data:
-${JSON.stringify(debugData, null, 2)}
-
-Please analyze this data and provide insights on:
-- System performance and timing
-- Strategy effectiveness 
-- Document flow and reranking impact
-- Areas for optimization
-
-This is for debugging purposes only - do not include this analysis in your response to the user.`;
-
-							// Send debug analysis to the model (user can see this in Chat Model execution logs)
-							await model.invoke(analysisPrompt);
-						} catch (debugError) {
-							// Silent failure for debug analysis
-						}
-					}
+					// Store debugging data in memory
+					await storeDebugDataInMemory(debugData, strategyType);
 
 					// Return structured JSON when returning source documents
 					if (retrievalOptions.returnRankedDocuments) {
