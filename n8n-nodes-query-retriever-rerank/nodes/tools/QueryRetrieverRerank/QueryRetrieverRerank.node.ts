@@ -221,7 +221,7 @@ export class QueryRetrieverRerank implements INodeType {
 						name: 'debugging',
 						type: 'boolean',
 						default: false,
-						description: 'Include detailed execution information, reranking movement, and performance metrics in the response',
+						description: 'Send detailed execution metrics and AI-generated performance analysis to the connected language model. Check the Chat Model execution logs to see the debug analysis.',
 					},
 				],
 			},
@@ -240,6 +240,111 @@ export class QueryRetrieverRerank implements INodeType {
 		// Always apply nodeNameToToolName sanitization to ensure API compatibility
 		const name = nodeNameToToolName({ name: rawName } as any);
 		const description = toolOptions.description || 'A tool for answering questions by searching through a vector store of documents';
+
+		// Modular reranking function for use across all strategies
+		const performReranking = async (
+			docs: any[], 
+			query: string, 
+			embeddings: any, 
+			topK: number,
+			context: {
+				strategyType: string;
+				queryIndex?: number;
+				isOriginal?: boolean;
+				label?: string;
+			},
+			debugging: boolean = false
+		) => {
+			if (docs.length === 0) return { docs: [], debugInfo: null };
+
+			try {
+				// Get embeddings for the query
+				const queryEmbedding = await embeddings.embedQuery(query);
+				
+				// Get embeddings for all documents
+				const docTexts = docs.map((doc: any) => doc.pageContent);
+				const docEmbeddings = await embeddings.embedDocuments(docTexts);
+				
+				// Calculate similarity scores
+				const similarities = docEmbeddings.map((docEmbed: number[]) => {
+					const dotProduct = queryEmbedding.reduce((sum: number, a: number, j: number) => sum + a * docEmbed[j], 0);
+					const queryMagnitude = Math.sqrt(queryEmbedding.reduce((sum: number, a: number) => sum + a * a, 0));
+					const docMagnitude = Math.sqrt(docEmbed.reduce((sum: number, a: number) => sum + a * a, 0));
+					return dotProduct / (queryMagnitude * docMagnitude);
+				});
+				
+				// Create array with scores and original positions
+				const docsWithScoresAndPositions = docs.map((doc: any, index: number) => ({
+					doc,
+					score: similarities[index],
+					originalPosition: index,
+					contentPreview: doc.pageContent.substring(0, 100) + (doc.pageContent.length > 100 ? '...' : '')
+				}));
+				
+				// Sort by score (descending)
+				const sortedDocs = [...docsWithScoresAndPositions].sort((a, b) => b.score - a.score);
+				
+				// Take top documents
+				const finalDocs = sortedDocs.slice(0, topK);
+				const resultDocs = finalDocs.map(item => item.doc);
+				
+				// Generate debug information if requested
+				let debugInfo = null;
+				if (debugging) {
+					debugInfo = {
+						context,
+						totalDocuments: docs.length,
+						originalOrder: docsWithScoresAndPositions.map((item, index) => ({
+							position: index,
+							score: item.score,
+							contentPreview: item.contentPreview
+						})),
+						rerankedOrder: sortedDocs.map((item, newIndex) => ({
+							newPosition: newIndex,
+							originalPosition: item.originalPosition,
+							score: item.score,
+							movement: newIndex - item.originalPosition,
+							contentPreview: item.contentPreview
+						})),
+						finalSelection: finalDocs.map((item, index) => ({
+							finalPosition: index,
+							originalPosition: item.originalPosition,
+							score: item.score,
+							totalMovement: index - item.originalPosition,
+							selected: true,
+							contentPreview: item.contentPreview
+						})),
+						filteredOut: sortedDocs.slice(topK).map((item, index) => ({
+							originalPosition: item.originalPosition,
+							rerankedPosition: topK + index,
+							score: item.score,
+							reason: `Below top-${topK} threshold${context.label ? ` for ${context.label}` : ''}`,
+							contentPreview: item.contentPreview
+						})),
+						effectiveness: {
+							averageMovement: finalDocs.length > 0 ? 
+								finalDocs.reduce((sum, item, index) => sum + Math.abs(index - item.originalPosition), 0) / finalDocs.length : 0,
+							scoreRange: {
+								highest: Math.max(...similarities),
+								lowest: Math.min(...similarities),
+								spread: Math.max(...similarities) - Math.min(...similarities)
+							},
+							documentsReordered: finalDocs.filter((item, index) => item.originalPosition !== index).length,
+							significantMovement: finalDocs.filter((item, index) => Math.abs(index - item.originalPosition) > 1).length
+						}
+					};
+				}
+				
+				return { docs: resultDocs, debugInfo };
+				
+			} catch (error) {
+				// Fall back to taking top documents without reranking
+				return { 
+					docs: docs.slice(0, topK), 
+					debugInfo: debugging ? { context, error: error instanceof Error ? error.message : String(error) } : null 
+				};
+			}
+		};
 		const retrievalOptions = this.getNodeParameter('retrievalOptions', itemIndex, {}) as {
 			documentsToRetrieve?: number;
 			documentsToReturn?: number;
@@ -313,6 +418,7 @@ export class QueryRetrieverRerank implements INodeType {
 					let docs;
 					const documentsToRetrieve = retrievalOptions.documentsToRetrieve || 10;
 					const documentsToReturn = retrievalOptions.documentsToReturn || 4;
+					const perQueryReranking: any[] = []; // Declare at function scope for multi-query debugging
 					
 					if (strategyType === 'multi_query') {
 						// Multi-Query strategy: generate variations and search with each
@@ -408,21 +514,70 @@ What are the main benefits and applications?`
 												return dotProduct / (queryMagnitude * docMagnitude);
 											});
 											
-											// Create array with scores and sort
-											const docsWithScores = queryDocs.map((doc, index) => ({
+											// Create array with scores and original positions for detailed debugging
+											const docsWithScoresAndPositions = queryDocs.map((doc, index) => ({
 												doc,
-												score: similarities[index]
+												score: similarities[index],
+												originalPosition: index,
+												contentPreview: doc.pageContent.substring(0, 100) + (doc.pageContent.length > 100 ? '...' : '')
 											}));
 											
-											docsWithScores.sort((a, b) => b.score - a.score);
+											// Sort by score (descending)
+											const sortedDocsForQuery = [...docsWithScoresAndPositions].sort((a, b) => b.score - a.score);
 											
 											// Take top documents as specified by "Documents to Return"
-											const topDocsForQuery = docsWithScores.slice(0, documentsToReturn).map(item => item.doc);
+											const topDocsForQuery = sortedDocsForQuery.slice(0, documentsToReturn);
+											
+											// Store per-query reranking details
+											if (options.debugging) {
+												perQueryReranking.push({
+													queryIndex: i,
+													query,
+													isOriginal,
+													totalDocuments: queryDocs.length,
+													originalOrder: docsWithScoresAndPositions.map((item, index) => ({
+														position: index,
+														score: item.score,
+														contentPreview: item.contentPreview
+													})),
+													rerankedOrder: sortedDocsForQuery.map((item, newIndex) => ({
+														newPosition: newIndex,
+														originalPosition: item.originalPosition,
+														score: item.score,
+														movement: newIndex - item.originalPosition,
+														contentPreview: item.contentPreview
+													})),
+													finalSelection: topDocsForQuery.map((item, index) => ({
+														finalPosition: index,
+														originalPosition: item.originalPosition,
+														score: item.score,
+														totalMovement: index - item.originalPosition,
+														contentPreview: item.contentPreview
+													})),
+													filteredOut: sortedDocsForQuery.slice(documentsToReturn).map((item, index) => ({
+														originalPosition: item.originalPosition,
+														rerankedPosition: documentsToReturn + index,
+														score: item.score,
+														reason: 'Below top-k threshold for this query',
+														contentPreview: item.contentPreview
+													})),
+													effectiveness: {
+														averageMovement: topDocsForQuery.reduce((sum, item, index) => 
+															sum + Math.abs(index - item.originalPosition), 0) / topDocsForQuery.length,
+														scoreRange: {
+															highest: Math.max(...similarities),
+															lowest: Math.min(...similarities),
+															spread: Math.max(...similarities) - Math.min(...similarities)
+														},
+														topDocumentsChanged: topDocsForQuery.filter((item, index) => item.originalPosition !== index).length
+													}
+												});
+											}
 											
 											// Add to collection with source tracking
-											topDocsForQuery.forEach(doc => {
+											topDocsForQuery.forEach(item => {
 												allRerankedDocs.push({
-													doc,
+													doc: item.doc,
 													source: isOriginal ? 'original' : `variation_${i}`
 												});
 											});
@@ -477,44 +632,29 @@ What are the main benefits and applications?`
 							const rawDocs = await vectorStore.similaritySearch(input, documentsToRetrieve);
 							debugData.documentFlow.totalRetrieved = rawDocs.length;
 							
-							// Apply reranking immediately to follow base rule
-							if (rawDocs.length > 0) {
-								try {
-									// Get embeddings for the query
-									const queryEmbedding = await rerankingEmbeddings.embedQuery(input);
-									
-									// Get embeddings for all documents
-									const docTexts = rawDocs.map(doc => doc.pageContent);
-									const docEmbeddings = await rerankingEmbeddings.embedDocuments(docTexts);
-									
-									// Calculate similarity scores
-									const similarities = docEmbeddings.map(docEmbed => {
-										const dotProduct = queryEmbedding.reduce((sum, a, j) => sum + a * docEmbed[j], 0);
-										const queryMagnitude = Math.sqrt(queryEmbedding.reduce((sum, a) => sum + a * a, 0));
-										const docMagnitude = Math.sqrt(docEmbed.reduce((sum, a) => sum + a * a, 0));
-										return dotProduct / (queryMagnitude * docMagnitude);
-									});
-									
-									// Create array with scores and sort
-									const docsWithScores = rawDocs.map((doc, index) => ({
-										doc,
-										score: similarities[index]
-									}));
-									
-									docsWithScores.sort((a, b) => b.score - a.score);
-									
-									// Take top documents as specified by "Documents to Return"
-									docs = docsWithScores.slice(0, documentsToReturn).map(item => item.doc);
-									
-									debugData.timing.documentRetrieval = `${Date.now() - retrievalStart}ms`;
-									
-								} catch (rerankError) {
-									// Fall back to taking top documents without reranking
-									docs = rawDocs.slice(0, documentsToReturn);
-								}
-							} else {
-								docs = rawDocs;
+							// Use modular reranking function
+							const rerankResult = await performReranking(
+								rawDocs,
+								input,
+								rerankingEmbeddings,
+								documentsToReturn,
+								{
+									strategyType: 'simple_query',
+									label: 'simple query'
+								},
+								options.debugging
+							);
+							
+							docs = rerankResult.docs;
+							
+							// Store debug information
+							if (options.debugging && rerankResult.debugInfo) {
+								debugData.reranking = {
+									simpleQuery: rerankResult.debugInfo
+								};
 							}
+							
+							debugData.timing.documentRetrieval = `${Date.now() - retrievalStart}ms`;
 							
 						} catch (searchError) {
 							
@@ -549,15 +689,68 @@ What are the main benefits and applications?`
 								return dotProduct / (queryMagnitude * docMagnitude);
 							});
 							
-							// Create array of documents with their similarity scores
-							const docsWithScores = docs.map((doc, index) => ({
+							// Create array of documents with their similarity scores and positions
+							const docsWithScoresAndPositions = docs.map((doc, index) => ({
 								doc,
-								score: similarities[index]
+								score: similarities[index],
+								preRerankPosition: index,
+								contentPreview: doc.pageContent.substring(0, 100) + (doc.pageContent.length > 100 ? '...' : '')
 							}));
 							
-							// Sort by similarity score (highest first) and take final top results
-							docsWithScores.sort((a, b) => b.score - a.score);
-							docs = docsWithScores.slice(0, documentsToReturn).map(item => item.doc);
+							// Sort by similarity score (highest first)
+							const finalSortedDocs = [...docsWithScoresAndPositions].sort((a, b) => b.score - a.score);
+							
+							// Take final top results
+							const finalSelectedDocs = finalSortedDocs.slice(0, documentsToReturn);
+							docs = finalSelectedDocs.map(item => item.doc);
+							
+							// Store final reranking debug information
+							if (options.debugging) {
+								if (!debugData.reranking) debugData.reranking = {};
+								debugData.reranking.multiQueryFinalRerank = {
+									preRerankedOrder: docsWithScoresAndPositions.map((item, index) => ({
+										position: index,
+										score: item.score,
+										contentPreview: item.contentPreview
+									})),
+									finalRerankedOrder: finalSortedDocs.map((item, newIndex) => ({
+										finalPosition: newIndex,
+										preRerankPosition: item.preRerankPosition,
+										score: item.score,
+										movement: newIndex - item.preRerankPosition,
+										contentPreview: item.contentPreview
+									})),
+									finalSelection: finalSelectedDocs.map((item, index) => ({
+										finalPosition: index,
+										preRerankPosition: item.preRerankPosition,
+										score: item.score,
+										totalMovement: index - item.preRerankPosition,
+										selected: true,
+										contentPreview: item.contentPreview
+									})),
+									filteredOut: finalSortedDocs.slice(documentsToReturn).map((item, index) => ({
+										preRerankPosition: item.preRerankPosition,
+										finalRerankPosition: documentsToReturn + index,
+										score: item.score,
+										reason: 'Below final top-k threshold',
+										contentPreview: item.contentPreview
+									})),
+									effectiveness: {
+										averageMovement: finalSelectedDocs.reduce((sum, item, index) => 
+											sum + Math.abs(index - item.preRerankPosition), 0) / finalSelectedDocs.length,
+										scoreRange: {
+											highest: Math.max(...similarities),
+											lowest: Math.min(...similarities),
+											spread: Math.max(...similarities) - Math.min(...similarities)
+										},
+										documentsReordered: finalSelectedDocs.filter((item, index) => item.preRerankPosition !== index).length,
+										significantMovement: finalSelectedDocs.filter((item, index) => Math.abs(index - item.preRerankPosition) > 1).length
+									}
+								};
+								
+								// Add per-query reranking details to debug data
+								debugData.reranking.perQueryDetails = perQueryReranking;
+							}
 							
 							debugData.timing.finalReranking = `${Date.now() - finalRerankStart}ms`;
 							
@@ -565,6 +758,10 @@ What are the main benefits and applications?`
 							// Fall back to first N documents if final reranking fails
 							docs = docs.slice(0, documentsToReturn);
 						}
+					} else if (strategyType === 'multi_query' && options.debugging) {
+						// Store per-query reranking details even if no final rerank needed
+						if (!debugData.reranking) debugData.reranking = {};
+						debugData.reranking.perQueryDetails = perQueryReranking;
 					}
 					
 					// Handle different strategy types
@@ -577,16 +774,37 @@ What are the main benefits and applications?`
 						debugData.timing.total = `${Date.now() - startTime}ms`;
 						debugData.documentFlow.finalCount = docs.length;
 						
+						// Handle debugging by sending analysis to the language model
+						if (options.debugging) {
+							try {
+								const analysisPrompt = `QUERY RETRIEVER DEBUG ANALYSIS
+
+The following debug data is from a document retrieval and reranking execution (strategy: none):
+
+Debug Data:
+${JSON.stringify(debugData, null, 2)}
+
+Please analyze this data and provide insights on:
+- System performance and timing
+- Document retrieval effectiveness
+- Reranking impact
+- Areas for optimization
+
+This is for debugging purposes only - do not include this analysis in your response to the user.`;
+
+								// Send debug analysis to the model (user can see this in Chat Model execution logs)
+								await model.invoke(analysisPrompt);
+							} catch (debugError) {
+								// Silent failure for debug analysis
+							}
+						}
+						
 						const result: any = {
 							sourceDocuments: docs.map((doc: any) => ({
 								pageContent: doc.pageContent,
 								metadata: doc.metadata
 							}))
 						};
-						
-						if (options.debugging) {
-							result.debug = debugData;
-						}
 						
 						return JSON.stringify(result, null, 2);
 					}
@@ -625,22 +843,40 @@ Answer:`;
 					debugData.timing.total = `${Date.now() - startTime}ms`;
 					debugData.documentFlow.finalCount = docs.length;
 
-					// Always return structured JSON when debugging is enabled or when returning source documents
-					if (retrievalOptions.returnRankedDocuments || options.debugging) {
+					// Handle debugging by sending analysis to the language model
+					if (options.debugging) {
+						try {
+							const analysisPrompt = `QUERY RETRIEVER DEBUG ANALYSIS
+
+The following debug data is from a document retrieval and reranking execution:
+
+Debug Data:
+${JSON.stringify(debugData, null, 2)}
+
+Please analyze this data and provide insights on:
+- System performance and timing
+- Strategy effectiveness 
+- Document flow and reranking impact
+- Areas for optimization
+
+This is for debugging purposes only - do not include this analysis in your response to the user.`;
+
+							// Send debug analysis to the model (user can see this in Chat Model execution logs)
+							await model.invoke(analysisPrompt);
+						} catch (debugError) {
+							// Silent failure for debug analysis
+						}
+					}
+
+					// Return structured JSON when returning source documents
+					if (retrievalOptions.returnRankedDocuments) {
 						const result: any = {
 							answer: typeof response === 'string' ? response : response.content || response.text || String(response),
-							sourceDocuments: retrievalOptions.returnRankedDocuments ? docs.map((doc: any) => ({
+							sourceDocuments: docs.map((doc: any) => ({
 								pageContent: doc.pageContent,
 								metadata: doc.metadata
-							})) : undefined
+							}))
 						};
-						
-						if (options.debugging) {
-							result.debug = debugData;
-						}
-						
-						// Remove undefined fields for cleaner output
-						Object.keys(result).forEach(key => result[key] === undefined && delete result[key]);
 						
 						return JSON.stringify(result, null, 2);
 					}
