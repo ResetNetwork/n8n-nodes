@@ -1,6 +1,7 @@
 import type { QueryStrategy } from '../shared/types';
 import { SimpleQueryStrategy } from './SimpleQueryStrategy';
 import { MultiQueryStrategy } from './MultiQueryStrategy';
+import { MultiStepQueryStrategy } from './MultiStepQueryStrategy';
 import { NoneStrategy } from './NoneStrategy';
 
 // Strategy registry
@@ -8,6 +9,7 @@ export class StrategyRegistry {
 	private static strategies = new Map<string, () => QueryStrategy>([
 		['simple_query', () => new SimpleQueryStrategy()],
 		['multi_query', () => new MultiQueryStrategy()],
+		['multi_step_query', () => new MultiStepQueryStrategy()],
 		['none', () => new NoneStrategy()],
 	]);
 
@@ -53,6 +55,7 @@ export class StrategyRegistry {
 		switch (key) {
 			case 'simple_query': return 'Simple Query';
 			case 'multi_query': return 'Multi-Query';
+			case 'multi_step_query': return 'Multi-Step Query';
 			case 'none': return 'None';
 			default: return key;
 		}
@@ -62,5 +65,6 @@ export class StrategyRegistry {
 // Export all strategies for convenience
 export { SimpleQueryStrategy } from './SimpleQueryStrategy';
 export { MultiQueryStrategy } from './MultiQueryStrategy';
+export { MultiStepQueryStrategy } from './MultiStepQueryStrategy';
 export { NoneStrategy } from './NoneStrategy';
 export { BaseStrategy } from './BaseStrategy';

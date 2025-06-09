@@ -22,6 +22,8 @@ export interface StrategyConfig {
 	promptTemplate?: string;
 	queryVariations?: number;
 	includeOriginalQuery?: boolean;
+	maxSteps?: number;
+	enableEarlyStop?: boolean;
 }
 
 // Result from strategy execution

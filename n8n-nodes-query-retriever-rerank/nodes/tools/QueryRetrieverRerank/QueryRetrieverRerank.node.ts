@@ -186,6 +186,34 @@ export class QueryRetrieverRerank implements INodeType {
 						},
 					},
 					{
+						displayName: 'Max Reasoning Steps',
+						name: 'maxSteps',
+						type: 'number',
+						default: 3,
+						description: 'Maximum number of reasoning steps for multi-step query decomposition',
+						typeOptions: {
+							minValue: 1,
+							maxValue: 8,
+						},
+						displayOptions: {
+							show: {
+								strategyType: ['multi_step_query'],
+							},
+						},
+					},
+					{
+						displayName: 'Enable Early Stopping',
+						name: 'enableEarlyStop',
+						type: 'boolean',
+						default: true,
+						description: 'Stop reasoning early when sufficient information is gathered to answer the original question',
+						displayOptions: {
+							show: {
+								strategyType: ['multi_step_query'],
+							},
+						},
+					},
+					{
 						displayName: 'Query Prompt Template',
 						name: 'promptTemplate',
 						type: 'string',
@@ -259,6 +287,8 @@ export class QueryRetrieverRerank implements INodeType {
 			promptTemplate?: string;
 			queryVariations?: number;
 			includeOriginalQuery?: boolean;
+			maxSteps?: number;
+			enableEarlyStop?: boolean;
 		};
 		const options = this.getNodeParameter('options', itemIndex, {}) as {
 			debugging?: boolean;
@@ -292,6 +322,8 @@ export class QueryRetrieverRerank implements INodeType {
 			promptTemplate: queryStrategy.promptTemplate,
 			queryVariations: queryStrategy.queryVariations,
 			includeOriginalQuery: queryStrategy.includeOriginalQuery,
+			maxSteps: queryStrategy.maxSteps,
+			enableEarlyStop: queryStrategy.enableEarlyStop,
 		};
 
 		// Create strategy context
