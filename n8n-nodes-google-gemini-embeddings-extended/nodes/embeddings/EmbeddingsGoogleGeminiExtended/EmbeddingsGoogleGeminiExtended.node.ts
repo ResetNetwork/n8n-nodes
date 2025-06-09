@@ -7,7 +7,6 @@ import {
 } from 'n8n-workflow';
 
 import { GoogleGenerativeAIEmbeddings } from '@langchain/google-genai';
-import { getConnectionHintNoticeField } from '../../utils/sharedFields';
 import { logWrapper } from '../../utils/logWrapper';
 
 export class EmbeddingsGoogleGeminiExtended implements INodeType {
@@ -45,7 +44,6 @@ export class EmbeddingsGoogleGeminiExtended implements INodeType {
 		outputs: [NodeConnectionType.AiEmbedding],
 		outputNames: ['Embeddings'],
 		properties: [
-			getConnectionHintNoticeField([NodeConnectionType.AiVectorStore]),
 			{
 				displayName: 'Model Name',
 				name: 'model',
