@@ -1,18 +1,14 @@
 {
   "name": "n8n-nodes-query-retriever-rerank",
   "version": "0.3.0",
-  "description": "Advanced n8n community node with multi-query strategies, intelligent reranking, and comprehensive debugging for vector store retrieval",
+  "description": "n8n community node for vector store question answering with reranking capabilities",
   "keywords": [
     "n8n-community-node-package",
     "vector-store",
-    "multi-query",
-    "reranking",
     "ai",
     "langchain",
     "question-answer",
-    "retrieval",
-    "debugging",
-    "enhanced"
+    "retrieval"
   ],
   "license": "MIT",
   "homepage": "https://github.com/ResetNetwork/n8n-nodes#readme",

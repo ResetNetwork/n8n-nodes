@@ -1,4 +1,4 @@
-import { INodeProperties, NodeConnectionType } from 'n8n-workflow';
+import { INodeProperties, NodeConnectionType, INode } from 'n8n-workflow';
 
 export function getConnectionHintNoticeField(
 	connectionTypes: NodeConnectionType[],
@@ -19,3 +19,5 @@ export function getConnectionHintNoticeField(
 		default: '',
 	};
 }
+
+

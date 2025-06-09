@@ -31,22 +31,14 @@ function logAiEvent(executeFunctions: ISupplyDataFunctions, eventType: string): 
 }
 
 export function logWrapper<T extends object>(originalInstance: T, executeFunctions: ISupplyDataFunctions): T {
-	console.log('ToolLogWrapper: Wrapping instance of type:', originalInstance.constructor.name);
-	
 	return new Proxy(originalInstance, {
 		get(target, prop, receiver) {
 			const originalValue = Reflect.get(target, prop, receiver);
-			
-			// Log all method calls for debugging
-			if (typeof originalValue === 'function' && typeof prop === 'string') {
-				console.log('ToolLogWrapper: Method accessed:', prop);
-			}
 
 			// Handle Tool - check for _call method (standard tool interface)
 			if ('_call' in target || 'call' in target) {
 				if (prop === '_call' && '_call' in target) {
 					return async (input: string): Promise<string> => {
-						console.log('ToolLogWrapper: _call intercepted, input length:', input?.length || 0);
 						const connectionType = NodeConnectionType.AiTool;
 
 						// Log input data
@@ -63,7 +55,6 @@ export function logWrapper<T extends object>(originalInstance: T, executeFunctio
 							arguments: [input],
 						})) as string;
 
-						console.log('ToolLogWrapper: _call completed, response length:', response?.length || 0);
 
 						// Log AI event
 						logAiEvent(executeFunctions, 'ai-tool-called');
@@ -79,7 +70,6 @@ export function logWrapper<T extends object>(originalInstance: T, executeFunctio
 
 				if (prop === 'call' && 'call' in target) {
 					return async (input: string): Promise<string> => {
-						console.log('ToolLogWrapper: call intercepted, input length:', input?.length || 0);
 						const connectionType = NodeConnectionType.AiTool;
 
 						// Log input data
@@ -96,7 +86,6 @@ export function logWrapper<T extends object>(originalInstance: T, executeFunctio
 							arguments: [input],
 						})) as string;
 
-						console.log('ToolLogWrapper: call completed, response length:', response?.length || 0);
 
 						// Log AI event
 						logAiEvent(executeFunctions, 'ai-tool-called');

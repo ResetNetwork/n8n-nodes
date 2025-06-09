@@ -30,8 +30,8 @@ if grep -q "n8n-nodes-contextual-document-loader" n8n_test_output.log; then
     ((NODES_FOUND++))
 fi
 
-if grep -q "n8n-nodes-semantic-text-splitter" n8n_test_output.log; then
-    echo "  ✅ Semantic Text Splitter found"
+if grep -q "n8n-nodes-semantic-splitter-with-context" n8n_test_output.log; then
+    echo "  ✅ Semantic Splitter with Context found"
     ((NODES_FOUND++))
 fi
 
@@ -45,13 +45,9 @@ if grep -q "n8n-nodes-google-vertex-embeddings-extended" n8n_test_output.log; th
     ((NODES_FOUND++))
 fi
 
-if grep -q "n8n-nodes-documentloader" n8n_test_output.log; then
-    echo "  ✅ Document Loader found"
-    ((NODES_FOUND++))
-fi
 
-if grep -q "n8n-nodes-contextual-semantic-text-splitter" n8n_test_output.log; then
-    echo "  ✅ Contextual Semantic Text Splitter found"
+if grep -q "n8n-nodes-query-retriever-rerank" n8n_test_output.log; then
+    echo "  ✅ Query Retriever with Rerank found"
     ((NODES_FOUND++))
 fi
 
@@ -63,9 +59,9 @@ fi
 
 echo ""
 echo "📊 Test Results:"
-echo "  Nodes detected in logs: $NODES_FOUND/6"
+echo "  Nodes detected in logs: $NODES_FOUND/4"
 
-if [ $NODES_FOUND -eq 6 ]; then
+if [ $NODES_FOUND -eq 4 ]; then
     echo "  🎉 All nodes appear to be loading correctly!"
 elif [ $NODES_FOUND -gt 0 ]; then
     echo "  ⚠️  Some nodes may not be loading properly"

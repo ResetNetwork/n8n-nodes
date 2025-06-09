@@ -11,6 +11,7 @@ import type { BaseLanguageModel } from '@langchain/core/language_models/base';
 import type { VectorStore } from '@langchain/core/vectorstores';
 import type { Embeddings } from '@langchain/core/embeddings';
 import { getConnectionHintNoticeField } from '../../utils/sharedFields';
+import { nodeNameToToolName } from '../../utils/helpers';
 import { logWrapper } from '../../utils/logWrapper';
 
 export class QueryRetrieverRerank implements INodeType {
@@ -60,25 +61,33 @@ export class QueryRetrieverRerank implements INodeType {
 		properties: [
 			getConnectionHintNoticeField([NodeConnectionType.AiAgent]),
 			{
-				displayName: 'Name',
-				name: 'name',
-				type: 'string',
-				default: 'vector-store-qa',
-				placeholder: 'e.g. knowledge-base, documents-qa, search-tool',
-				description: 'The name of the tool. This will be used by the AI agent to identify and call this tool.',
-				required: true,
-			},
-			{
-				displayName: 'Description',
-				name: 'description',
-				type: 'string',
-				default: 'A tool for answering questions by searching through a vector store of documents',
-				placeholder: 'e.g. Search through our knowledge base to answer user questions',
-				description: 'A description of what this tool does. This helps the AI agent understand when to use this tool.',
-				typeOptions: {
-					rows: 3,
-				},
-				required: true,
+				displayName: 'Tool Options',
+				name: 'toolOptions',
+				placeholder: 'Add Option',
+				description: 'Configure the AI tool name and description',
+				type: 'collection',
+				default: {},
+				options: [
+					{
+						displayName: 'Tool Name',
+						name: 'toolName',
+						type: 'string',
+						default: '',
+						placeholder: 'Leave empty to use node name automatically',
+						description: 'Custom name for the AI tool. If empty, will use the node name from the interface (safer for API compatibility).',
+					},
+					{
+						displayName: 'Tool Description',
+						name: 'description',
+						type: 'string',
+						default: 'A tool for answering questions by searching through a vector store of documents',
+						placeholder: 'Describe your data here, e.g. user information, knowledge base, etc.',
+						description: 'Describe the data in vector store. This will be used to fill the tool description.',
+						typeOptions: {
+							rows: 3,
+						},
+					},
+				],
 			},
 			{
 				displayName: 'Retrieval Options',
@@ -200,10 +209,10 @@ export class QueryRetrieverRerank implements INodeType {
 				],
 			},
 			{
-				displayName: 'Options',
+				displayName: 'Advanced Options',
 				name: 'options',
 				placeholder: 'Add Option',
-				description: 'Additional options for the vector store tool',
+				description: 'Advanced configuration options for the vector store tool',
 				type: 'collection',
 				default: {},
 				options: [
@@ -219,27 +228,35 @@ export class QueryRetrieverRerank implements INodeType {
 		],
 	};
 
-	async supplyData(this: ISupplyDataFunctions): Promise<SupplyData> {
+	async supplyData(this: ISupplyDataFunctions, itemIndex: number): Promise<SupplyData> {
+		const node = this.getNode();
+		const toolOptions = this.getNodeParameter('toolOptions', itemIndex, {}) as {
+			toolName?: string;
+			description?: string;
+		};
 		
-		const name = this.getNodeParameter('name', 0) as string;
-		const description = this.getNodeParameter('description', 0) as string;
-		const retrievalOptions = this.getNodeParameter('retrievalOptions', 0, {}) as {
+		// Use custom name if provided, otherwise fall back to node name
+		const rawName = toolOptions.toolName?.trim() || node.name;
+		// Always apply nodeNameToToolName sanitization to ensure API compatibility
+		const name = nodeNameToToolName({ name: rawName } as any);
+		const description = toolOptions.description || 'A tool for answering questions by searching through a vector store of documents';
+		const retrievalOptions = this.getNodeParameter('retrievalOptions', itemIndex, {}) as {
 			documentsToRetrieve?: number;
 			documentsToReturn?: number;
 			returnRankedDocuments?: boolean;
 		};
-		const queryStrategy = this.getNodeParameter('queryStrategy', 0, { strategyType: 'simple_query' }) as {
+		const queryStrategy = this.getNodeParameter('queryStrategy', itemIndex, { strategyType: 'simple_query' }) as {
 			strategyType: string;
 			promptTemplate?: string;
 			queryVariations?: number;
 			includeOriginalQuery?: boolean;
 		};
-		const options = this.getNodeParameter('options', 0, {}) as {
+		const options = this.getNodeParameter('options', itemIndex, {}) as {
 			debugging?: boolean;
 		};
 
 		// Get the vector store and language model from input connections
-		const vectorStore = (await this.getInputConnectionData(NodeConnectionType.AiVectorStore, 0)) as VectorStore;
+		const vectorStore = (await this.getInputConnectionData(NodeConnectionType.AiVectorStore, itemIndex)) as VectorStore;
 		const model = (await this.getInputConnectionData(NodeConnectionType.AiLanguageModel, 0)) as BaseLanguageModel;
 		const rerankingEmbeddings = (await this.getInputConnectionData(NodeConnectionType.AiEmbedding, 0)) as Embeddings;
 

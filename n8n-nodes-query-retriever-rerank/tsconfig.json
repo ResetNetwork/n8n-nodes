@@ -11,7 +11,11 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
-    "moduleResolution": "node"
+    "moduleResolution": "node",
+    "baseUrl": "./nodes",
+    "paths": {
+      "@utils/*": ["utils/*"]
+    }
   },
   "include": ["nodes/**/*"],
   "exclude": ["node_modules", "dist"]
