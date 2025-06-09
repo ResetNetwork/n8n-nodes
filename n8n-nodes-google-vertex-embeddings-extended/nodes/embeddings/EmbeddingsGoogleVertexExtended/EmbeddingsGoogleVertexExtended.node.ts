@@ -8,7 +8,23 @@ import {
 	INodePropertyOptions,
 } from 'n8n-workflow';
 
-import { GoogleVertexAIEmbeddings } from '@langchain/community/embeddings/googlevertexai';
+// Try different import paths for compatibility
+let GoogleVertexAIEmbeddings: any;
+try {
+	// Try the newer import path first
+	GoogleVertexAIEmbeddings = require('@langchain/community/embeddings/googlevertexai').GoogleVertexAIEmbeddings;
+} catch (e1) {
+	try {
+		// Fall back to older import paths
+		GoogleVertexAIEmbeddings = require('@langchain/community/embeddings/googlevertexai/web').GoogleVertexAIEmbeddings;
+	} catch (e2) {
+		try {
+			GoogleVertexAIEmbeddings = require('@langchain/community').GoogleVertexAIEmbeddings;
+		} catch (e3) {
+			throw new Error('GoogleVertexAIEmbeddings not found in @langchain/community. Please ensure you have a compatible version installed.');
+		}
+	}
+}
 import { getConnectionHintNoticeField } from '../../utils/sharedFields';
 import { logWrapper } from '../../utils/logWrapper';
 
@@ -217,10 +233,10 @@ export class EmbeddingsGoogleVertexExtended implements INodeType {
 		// Create wrapper that fixes LangChain's hardcoded batch size of 5
 		// LangChain assumes Vertex AI supports batch size 5, but it actually only supports 1
 		class FixedBatchVertexAIEmbeddings {
-			private baseEmbeddings: GoogleVertexAIEmbeddings;
+			private baseEmbeddings: any;
 			private batchSize: number;
 
-			constructor(baseEmbeddings: GoogleVertexAIEmbeddings, batchSize: number) {
+			constructor(baseEmbeddings: any, batchSize: number) {
 				this.baseEmbeddings = baseEmbeddings;
 				this.batchSize = batchSize;
 			}
