@@ -7,11 +7,15 @@ An extended Server-Sent Events (SSE) trigger node for n8n that adds support for 
 ## Features
 
 - 🔗 **Custom Headers Support**: Send custom headers with your SSE connection using key-value pairs or JSON format
-- 🔄 **Retry Logic**: Configurable retry attempts and delay for connection failures
-- 🔐 **Credentials Support**: Option to include credentials with SSE requests
-- ⏱️ **Connection Timeout**: Configurable connection timeout
-- 📊 **Enhanced Metadata**: Additional event metadata including timestamps and origin information
-- 🛡️ **Error Handling**: Improved error handling with detailed error information
+- 🔐 **Standard n8n Authentication**: Seamless integration with n8n's built-in credential system
+- 🔑 **Bearer Token Authentication**: Built-in support for JWT tokens and API keys
+- 🗝️ **Header-based Authentication**: Flexible custom header authentication (e.g., x-api-key)
+- 🔄 **Advanced Retry Logic**: Configurable retry attempts and delay for connection failures
+- ⏱️ **Connection Timeout**: Configurable connection timeout with automatic reconnection
+- 🌐 **Fetch-based Streaming**: Uses modern fetch API instead of EventSource for full header control
+- 📊 **Enhanced Metadata**: Rich event metadata including timestamps, origin, and event IDs
+- 🛡️ **Comprehensive Error Handling**: Detailed error reporting with retry information
+- 🧪 **Built-in Test Server**: Included SSE test server for development and testing
 
 ## Installation
 
@@ -23,17 +27,23 @@ npm install n8n-nodes-sse-trigger-extended
 
 1. Add the "SSE Trigger Extended" node to your workflow
 2. Configure the SSE endpoint URL
-3. Optionally enable custom headers and configure them using:
+3. Choose your authentication method:
+   - **None**: For public endpoints
+   - **Bearer Auth**: For JWT/API token authentication
+   - **Header Auth**: For custom header authentication (e.g., x-api-key)
+4. If using authentication, select or create the appropriate n8n credential
+5. Optionally enable custom headers and configure them using:
    - **Key-Value Pairs**: Add individual header name-value pairs
    - **JSON**: Provide headers as a JSON object
-4. Configure additional options like retry attempts, timeout, and credentials
-5. Activate the workflow to start listening for Server-Sent Events
+6. Configure advanced options like retry attempts and timeout
+7. Activate the workflow to start listening for Server-Sent Events
 
 ## Configuration Options
 
 ### Basic Settings
-- **URL**: The Server-Sent Events endpoint URL
-- **Authentication**: Choose how to authenticate with the SSE endpoint
+- **SSE Endpoint**: The Server-Sent Events endpoint URL
+- **Authentication**: Choose how to authenticate with the SSE endpoint (None, Bearer Auth, Header Auth)
+- **Credentials**: Select the appropriate n8n credential when using authentication
 - **Send Custom Headers**: Add additional headers beyond authentication
 
 ### Authentication Options
@@ -60,7 +70,6 @@ Additional headers that can be used with any authentication method:
 - **Header Parameters**: Define individual headers using name/value fields
 
 ### Advanced Options
-- **With Credentials**: Include credentials in the SSE connection
 - **Connection Timeout**: Set connection timeout in milliseconds (default: 30000)
 - **Retry Attempts**: Number of retry attempts on connection failure (default: 3)
 - **Retry Delay**: Delay between retry attempts in milliseconds (default: 1000)
@@ -75,8 +84,9 @@ The node outputs the received SSE event data along with enhanced metadata:
   "$metadata": {
     "eventType": "message",
     "lastEventId": "123",
-    "origin": "https://example.com",
-    "timestamp": "2024-01-01T12:00:00.000Z"
+    "origin": "https://example.com/events",
+    "timestamp": "2025-06-17T12:00:00.000Z",
+    "retry": 1000
   }
 }
 ```
@@ -87,21 +97,22 @@ If the SSE connection encounters errors or receives invalid JSON data, the node 
 
 ```json
 {
-  "error": "Error description",
-  "rawData": "raw event data (if applicable)",
+  "error": "SSE connection failed after max retries",
+  "details": "HTTP 401: Unauthorized",
   "$metadata": {
     "eventType": "error",
-    "timestamp": "2024-01-01T12:00:00.000Z"
+    "timestamp": "2025-06-17T12:00:00.000Z"
   }
 }
 ```
 
 ## Use Cases
 
-- Connect to authenticated SSE endpoints requiring custom headers
-- Monitor real-time data streams with enhanced reliability
-- Process live events from APIs that require specific authentication headers
-- Handle high-frequency SSE connections with retry logic
+- **Real-time notifications**: Monitor chat applications, live feeds, or system alerts
+- **Authenticated streaming**: Connect to secured SSE endpoints with Bearer tokens or API keys
+- **API monitoring**: Process live events from APIs that require specific authentication headers
+- **High-reliability streaming**: Handle intermittent connections with automatic retry logic
+- **Development and testing**: Use the included test server for rapid prototyping
 
 ## Comparison with Standard SSE Trigger
 
@@ -112,9 +123,11 @@ If the SSE connection encounters errors or receives invalid JSON data, the node 
 | Standard n8n Credentials | ❌ | ✅ |
 | HTTP Bearer Auth | ❌ | ✅ |
 | HTTP Header Auth | ❌ | ✅ |
+| Fetch-based streaming | ❌ | ✅ |
 | Retry logic | ❌ | ✅ |
 | Connection timeout | ❌ | ✅ |
 | Enhanced metadata | ❌ | ✅ |
+| Test server included | ❌ | ✅ |
 | Error handling | Basic | Enhanced |
 
 ## Development
@@ -129,11 +142,27 @@ npm run build
 # Watch for changes during development
 npm run dev
 
-# Run linting
-npm run lint
+# Start the test SSE server (optional)
+node ../test-sse-server.js
+```
 
-# Fix linting issues
-npm run lintfix
+### Test Server
+
+The package includes a built-in SSE test server for development:
+
+- **Endpoint**: `http://localhost:3001/events`
+- **Authentication**: Supports both Bearer tokens and header-based auth
+- **Test credentials**:
+  - Bearer token: `test-token-456`
+  - Header auth: `x-api-key: test-key-123`
+- **Behavior**: Sends a message every 2 seconds with timestamp
+
+```bash
+# Test with Bearer token
+curl -H "Authorization: Bearer test-token-456" http://localhost:3001/events
+
+# Test with API key
+curl -H "x-api-key: test-key-123" http://localhost:3001/events
 ```
 
 ## License
