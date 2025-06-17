@@ -37,8 +37,8 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "format": "prettier nodes --write",
-    "lint": "echo 'Lint check skipped - no eslint config'",
-    "lintfix": "echo 'Lint fix skipped - no eslint config'",
+    "lint": "eslint nodes --ext .ts",
+    "lintfix": "eslint nodes --ext .ts --fix",
     "prepublishOnly": "npm run build && npm run lint"
   },
   "files": [
@@ -51,12 +51,15 @@
     ]
   },
   "devDependencies": {
-    "@types/node": "^20.11.0",
-    "@typescript-eslint/parser": "^6.19.0",
-    "eslint": "^8.56.0",
+    "@eslint/js": "^9.29.0",
+    "@types/node": "^22.15.32",
+    "@typescript-eslint/eslint-plugin": "^8.34.1",
+    "@typescript-eslint/parser": "^8.34.1",
+    "eslint": "^9.29.0",
     "eslint-plugin-n8n-nodes-base": "^1.16.1",
+    "globals": "^16.2.0",
     "n8n-workflow": "^1.25.1",
-    "prettier": "^3.2.4",
+    "prettier": "^3.3.3",
     "typescript": "^5.3.3"
   },
   "peerDependencies": {

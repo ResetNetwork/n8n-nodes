@@ -5,10 +5,29 @@
 
 set -e  # Exit on error
 
-echo "🧹 Cleaning up n8n custom nodes links..."
+echo "🧹 Cleaning up n8n custom nodes links and SSE test server..."
 
 # Get the current directory
 ROOT_DIR=$(pwd)
+
+# Stop SSE test server if running
+SSE_PID_FILE="$ROOT_DIR/sse-server.pid"
+if [ -f "$SSE_PID_FILE" ]; then
+    SSE_PID=$(cat "$SSE_PID_FILE" 2>/dev/null)
+    if [ -n "$SSE_PID" ] && kill -0 "$SSE_PID" 2>/dev/null; then
+        echo "🛑 Stopping SSE test server (PID: $SSE_PID)..."
+        kill "$SSE_PID" 2>/dev/null
+        sleep 1
+    fi
+    rm -f "$SSE_PID_FILE"
+    echo "   ✅ SSE test server stopped"
+fi
+
+# Clean up log files
+if [ -f "$ROOT_DIR/sse-server.log" ]; then
+    rm -f "$ROOT_DIR/sse-server.log"
+    echo "   ✅ SSE server logs cleaned"
+fi
 
 # Array of node directories
 NODE_DIRS=(
@@ -17,6 +36,7 @@ NODE_DIRS=(
     "n8n-nodes-google-vertex-embeddings-extended"
     "n8n-nodes-semantic-splitter-with-context"
     "n8n-nodes-query-retriever-rerank"
+    "n8n-nodes-sse-trigger-extended"
 )
 
 # n8n custom directory

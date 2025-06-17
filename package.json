@@ -1,7 +1,7 @@
 {
   "name": "n8n-nodes-collection",
   "version": "1.0.0",
-  "description": "A collection of custom n8n nodes for enhanced document processing, text splitting, embeddings generation, and advanced query retrieval with reranking",
+  "description": "A collection of custom n8n nodes for enhanced document processing, text splitting, embeddings generation, advanced query retrieval with reranking, and extended trigger capabilities",
   "private": true,
   "workspaces": [
     "n8n-nodes-*"
@@ -16,7 +16,8 @@
     "start-n8n": "./start-n8n.sh",
     "dev-watch": "./dev-watch.sh",
     "cleanup-local": "./cleanup-local.sh",
-    "publish-all": "npm publish --workspaces --access public"
+    "publish-all": "npm publish --workspaces --access public",
+    "test-sse-server": "node test-sse-server.js"
   },
   "keywords": [
     "n8n",
@@ -28,7 +29,11 @@
     "multi-query",
     "reranking",
     "ai",
-    "langchain"
+    "langchain",
+    "sse",
+    "server-sent-events",
+    "trigger",
+    "real-time"
   ],
   "author": {
     "name": "Reset Network",
@@ -60,5 +65,9 @@
     "n8n-workflow": "*",
     "prettier": "^3.2.5",
     "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2"
   }
 }

@@ -13,6 +13,7 @@ All packages are published to npm under the `@resetnetwork` scope and can be ins
 | [`n8n-nodes-google-gemini-embeddings-extended`](./n8n-nodes-google-gemini-embeddings-extended) | ![npm](https://img.shields.io/npm/v/n8n-nodes-google-gemini-embeddings-extended) | Google Gemini Embeddings with extended features like output dimensions support |
 | [`n8n-nodes-google-vertex-embeddings-extended`](./n8n-nodes-google-vertex-embeddings-extended) | ![npm](https://img.shields.io/npm/v/n8n-nodes-google-vertex-embeddings-extended) | Google Vertex AI Embeddings with output dimensions and configurable batch size support |
 | [`n8n-nodes-query-retriever-rerank`](./n8n-nodes-query-retriever-rerank) | ![npm](https://img.shields.io/npm/v/n8n-nodes-query-retriever-rerank) | Advanced query retrieval with multi-step reasoning, reranking, and comprehensive debugging |
+| [`n8n-nodes-sse-trigger-extended`](./n8n-nodes-sse-trigger-extended) | ![npm](https://img.shields.io/npm/v/n8n-nodes-sse-trigger-extended) | Extended Server-Sent Events trigger with custom headers support and enhanced reliability |
 
 ## 🚀 Quick Start
 
@@ -25,7 +26,7 @@ Each node can be installed individually via npm:
 npm install n8n-nodes-semantic-splitter-with-context
 
 # Or install multiple nodes
-npm install n8n-nodes-semantic-splitter-with-context n8n-nodes-google-gemini-embeddings-extended n8n-nodes-query-retriever-rerank
+npm install n8n-nodes-semantic-splitter-with-context n8n-nodes-google-gemini-embeddings-extended n8n-nodes-query-retriever-rerank n8n-nodes-sse-trigger-extended
 ```
 
 ### Development Setup
@@ -168,6 +169,7 @@ If you prefer manual setup:
    npm link n8n-nodes-google-gemini-embeddings-extended
    npm link n8n-nodes-google-vertex-embeddings-extended
    npm link n8n-nodes-query-retriever-rerank
+   npm link n8n-nodes-sse-trigger-extended
    ```
 
 5. **Start n8n**:
@@ -226,6 +228,7 @@ After installation, verify the nodes appear in n8n:
    - **Google Gemini Embeddings Extended** (search for "gemini")
    - **Google Vertex Embeddings Extended** (search for "vertex")
    - **Query Retriever with Rerank** (search for "query retriever" or "rerank")
+   - **SSE Trigger Extended** (search for "sse trigger" or "server-sent events")
 
 ### Development Testing
 
@@ -241,6 +244,36 @@ npm run build
 echo "Starting n8n..."
 n8n start
 ```
+
+### SSE Test Server
+
+For testing the **SSE Trigger Extended** node, the repository includes a built-in test server that automatically starts with n8n:
+
+- **Endpoint:** `http://localhost:3001/events`
+- **Authentication:** Requires either:
+  - `x-api-key: test-key-123` header
+  - `authorization: Bearer test-token-456` header
+- **Behavior:** Sends a new message every 2 seconds with unique timestamps
+- **Auto-start:** Automatically runs when using `./start-n8n.sh`
+
+**Manual SSE server commands:**
+```bash
+# Start SSE server only
+npm run test-sse-server
+
+# Test with API key (Header Auth)
+curl -H "x-api-key: test-key-123" http://localhost:3001/events
+
+# Test with Bearer token
+curl -H "authorization: Bearer test-token-456" http://localhost:3001/events
+
+# Check server health
+curl http://localhost:3001/health
+```
+
+**n8n Configuration Examples:**
+- **Header Auth**: Header Name = `x-api-key`, Header Value = `test-key-123`
+- **Bearer Token**: Token = `test-token-456`
 
 ## 🐛 Troubleshooting
 

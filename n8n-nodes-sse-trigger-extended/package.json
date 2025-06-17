@@ -1,0 +1,60 @@
+{
+  "name": "n8n-nodes-sse-trigger-extended",
+  "version": "0.1.0",
+  "description": "Extended SSE trigger node for n8n with custom headers support",
+  "keywords": [
+    "n8n-community-node-package",
+    "n8n",
+    "nodes",
+    "sse",
+    "server-sent-events",
+    "trigger",
+    "headers"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/ResetNetwork/n8n-nodes",
+  "author": {
+    "name": "Reset Network",
+    "email": "support@resetnetwork.org"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ResetNetwork/n8n-nodes.git"
+  },
+  "engines": {
+    "node": ">=18.10",
+    "pnpm": ">=8.6"
+  },
+  "packageManager": "pnpm@8.6.2",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc && gulp build:icons",
+    "dev": "tsc --watch",
+    "format": "prettier nodes --write",
+    "lint": "eslint nodes package.json",
+    "lintfix": "eslint nodes package.json --fix",
+    "prepublishOnly": "npm run build && npm run lint",
+    "test": "jest"
+  },
+  "files": [
+    "dist"
+  ],
+  "n8n": {
+    "n8nNodesApiVersion": 1,
+    "credentials": [],
+    "nodes": [
+      "dist/nodes/trigger/SseTriggerExtended/SseTriggerExtended.node.js"
+    ]
+  },
+  "devDependencies": {
+    "@types/node": "^18.16.16",
+    "eslint": "^8.42.0",
+    "gulp": "^4.0.2",
+    "n8n-workflow": "*",
+    "prettier": "^2.8.8",
+    "typescript": "^5.1.3"
+  },
+  "peerDependencies": {
+    "n8n-workflow": "*"
+  }
+}
