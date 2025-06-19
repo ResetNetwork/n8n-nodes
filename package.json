@@ -16,6 +16,9 @@
     "start-n8n": "./start-n8n.sh",
     "dev-watch": "./dev-watch.sh",
     "cleanup-local": "./cleanup-local.sh",
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "release": "changeset publish",
     "publish-all": "npm publish --workspaces --access public",
     "test-sse-server": "node test-sse-server.js"
   },

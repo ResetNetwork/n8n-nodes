@@ -179,42 +179,72 @@ If you prefer manual setup:
 
 ## 📦 Publishing to npm
 
+This repository uses [Changesets](https://github.com/changesets/changesets) for version management and publishing.
+
 ### Prerequisites for Publishing
 
 1. **npm Account**: You need an npm account with access to publish packages
 2. **Organization Access**: For publishing under an organization scope, you need appropriate permissions
 3. **Authentication**: Login to npm via `npm login`
 
-### Publishing Individual Packages
+### Release Workflow with Changesets
 
-To publish a single package:
+#### 1. Create a Changeset
+
+After making changes to any package, create a changeset to document the changes:
 
 ```bash
-cd n8n-nodes-semantic-splitter-with-context
-npm publish --access public
+npm run changeset
 ```
 
-### Publishing All Packages
+This will:
+- Prompt you to select which packages have changed
+- Ask for the type of change (patch, minor, major)
+- Let you write a summary of the changes
+- Create a changeset file in `.changeset/`
 
-To publish all packages at once:
+#### 2. Version Packages
+
+When ready to release, update package versions based on changesets:
+
+```bash
+npm run version-packages
+```
+
+This will:
+- Update package.json versions according to changesets
+- Update CHANGELOG.md files
+- Remove consumed changeset files
+
+#### 3. Publish to npm
+
+Publish the updated packages:
+
+```bash
+npm run release
+```
+
+This will:
+- Publish all packages with updated versions to npm
+- Use the configured public access
+
+### Legacy Publishing (Backup)
+
+The old publishing method is still available:
 
 ```bash
 npm run publish-all
 ```
 
-This will:
-- Build all packages
-- Run linting
-- Publish all packages with public access
+### Changeset Best Practices
 
-### Version Management
-
-Before publishing, update the version in the package's `package.json`:
-
-```bash
-cd n8n-nodes-semantic-splitter-with-context
-npm version patch  # or minor, major
-```
+- **Create changesets immediately** after making changes
+- **Use semantic versioning** appropriately:
+  - `patch`: Bug fixes and non-breaking changes
+  - `minor`: New features that are backward compatible
+  - `major`: Breaking changes
+- **Write clear changeset summaries** that explain the impact to users
+- **Group related changes** in a single changeset when appropriate
 
 ## 🧪 Testing
 
