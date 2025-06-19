@@ -20,5 +20,6 @@
       "inputs": ["nodes/**", ".prettierrc*"],
       "outputs": ["nodes/**"]
     }
-  }
+  },
+  "globalDependencies": ["package.json"]
 }

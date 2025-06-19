@@ -41,8 +41,8 @@ cd n8n-nodes
 # Install dependencies for all packages
 npm install
 
-# Build all packages
-npm run build
+# Build all packages (optimized with Turborepo caching)
+npm run build:all
 
 # Set up local development environment
 ./setup-local.sh
@@ -53,7 +53,7 @@ npm run build
 
 ## 🛠️ Development
 
-This repository uses npm workspaces to manage multiple packages. Here are the available commands:
+This repository uses npm workspaces with [Turborepo](https://turborepo.com/) for optimized build caching and task orchestration, plus [Changesets](https://github.com/changesets/changesets) for version management.
 
 ### Root Level Commands
 
@@ -61,8 +61,14 @@ This repository uses npm workspaces to manage multiple packages. Here are the av
 # Install dependencies for all packages
 npm install
 
-# Build all packages
+# Build all packages (optimized with Turborepo caching)
+npm run build:all
+
+# Build all packages (legacy npm workspaces method)
 npm run build
+
+# Build only packages that changed since last commit
+npm run build:changed
 
 # Run linting on all packages
 npm run lint
@@ -73,10 +79,26 @@ npm run lintfix
 # Format code in all packages
 npm run format
 
-# Run development mode for all packages
+# Run development mode for all packages (with watch mode)
 npm run dev
 
-# Publish all packages to npm (requires proper permissions)
+# Run tests across all packages
+npm run test
+```
+
+### Release Management Commands
+
+```bash
+# Create a changeset after making changes
+npm run changeset
+
+# Update package versions based on changesets
+npm run version-packages
+
+# Publish updated packages to npm
+npm run release
+
+# Legacy publish method (backup)
 npm run publish-all
 ```
 
@@ -356,9 +378,17 @@ We welcome contributions! Please follow these guidelines:
 ### Development Workflow
 
 1. Make your changes in the respective node's source files
-2. Run the build command: `npm run build`
+2. Run the build command: `npm run build:all` (or `npm run build` for legacy method)
 3. Test in n8n
 4. For active development, use watch mode: `npm run dev`
+5. Before committing, create a changeset: `npm run changeset`
+
+### Turborepo Benefits
+
+- **Build caching**: Only rebuilds packages that have changed
+- **Parallel execution**: Runs tasks across packages simultaneously  
+- **Incremental builds**: Use `npm run build:changed` to build only modified packages
+- **Task orchestration**: Optimizes task dependencies and execution order
 
 ## 📄 License
 

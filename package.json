@@ -7,13 +7,14 @@
     "n8n-nodes-*"
   ],
   "scripts": {
-    "build": "turbo build",
-    "dev": "turbo dev",
-    "lint": "turbo lint",
-    "lintfix": "turbo lintfix",
-    "format": "turbo format",
-    "build:changed": "turbo build --filter='[HEAD~1]'",
-    "test": "turbo test",
+    "build:all": "turbo run build",
+    "build": "npm run build --workspaces",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "lintfix": "turbo run lintfix",
+    "format": "turbo run format",
+    "build:changed": "turbo run build --filter='[HEAD~1]'",
+    "test": "turbo run test",
     "setup-local": "./setup-local.sh",
     "start-n8n": "./start-n8n.sh",
     "dev-watch": "./dev-watch.sh",
@@ -53,9 +54,11 @@
   "bugs": {
     "url": "https://github.com/ResetNetwork/n8n-nodes/issues"
   },
+  "packageManager": "pnpm@9.15.9",
   "engines": {
     "node": ">=18.0.0",
-    "npm": ">=8.0.0"
+    "npm": ">=8.0.0",
+    "pnpm": ">=9.0.0"
   },
   "overrides": {
     "@langchain/community": ">=0.3.3"
@@ -69,6 +72,7 @@
     "eslint-plugin-n8n-nodes-base": "^1.16.0",
     "gulp": "^5.0.0",
     "n8n-workflow": "*",
+    "pnpm": "9.15.9",
     "prettier": "^3.2.5",
     "turbo": "^2.5.4",
     "typescript": "^5.3.3"
