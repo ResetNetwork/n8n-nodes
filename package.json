@@ -7,11 +7,13 @@
     "n8n-nodes-*"
   ],
   "scripts": {
-    "build": "npm run build --workspaces",
-    "dev": "npm run dev --workspaces",
-    "lint": "npm run lint --workspaces",
-    "lintfix": "npm run lintfix --workspaces",
-    "format": "npm run format --workspaces",
+    "build": "turbo build",
+    "dev": "turbo dev",
+    "lint": "turbo lint",
+    "lintfix": "turbo lintfix",
+    "format": "turbo format",
+    "build:changed": "turbo build --filter='[HEAD~1]'",
+    "test": "turbo test",
     "setup-local": "./setup-local.sh",
     "start-n8n": "./start-n8n.sh",
     "dev-watch": "./dev-watch.sh",
@@ -68,6 +70,7 @@
     "gulp": "^5.0.0",
     "n8n-workflow": "*",
     "prettier": "^3.2.5",
+    "turbo": "^2.5.4",
     "typescript": "^5.3.3"
   },
   "dependencies": {
