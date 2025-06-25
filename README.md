@@ -53,53 +53,53 @@ npm run build:all
 
 ## 🛠️ Development
 
-This repository uses npm workspaces with [Turborepo](https://turborepo.com/) for optimized build caching and task orchestration, plus [Changesets](https://github.com/changesets/changesets) for version management.
+This repository uses [pnpm workspaces](https://pnpm.io/workspaces) with [Turborepo](https://turborepo.com/) for optimized build caching and task orchestration, plus [Changesets](https://github.com/changesets/changesets) for version management.
 
 ### Root Level Commands
 
 ```bash
 # Install dependencies for all packages
-npm install
+pnpm install
 
 # Build all packages (optimized with Turborepo caching)
-npm run build:all
+pnpm run build:all
 
-# Build all packages (legacy npm workspaces method)
-npm run build
+# Build all packages (using pnpm workspaces)
+pnpm run build
 
 # Build only packages that changed since last commit
-npm run build:changed
+pnpm run build:changed
 
 # Run linting on all packages
-npm run lint
+pnpm run lint
 
 # Fix linting issues in all packages
-npm run lintfix
+pnpm run lintfix
 
 # Format code in all packages
-npm run format
+pnpm run format
 
 # Run development mode for all packages (with watch mode)
-npm run dev
+pnpm run dev
 
 # Run tests across all packages
-npm run test
+pnpm run test
 ```
 
 ### Release Management Commands
 
 ```bash
 # Create a changeset after making changes
-npm run changeset
+pnpm run changeset
 
 # Update package versions based on changesets
-npm run version-packages
+pnpm run version-packages
 
 # Publish updated packages to npm
-npm run release
+pnpm run release
 
 # Legacy publish method (backup)
-npm run publish-all
+pnpm run publish-all
 ```
 
 ### Helper Scripts
@@ -130,7 +130,7 @@ npm run dev
 ## 📋 Prerequisites
 
 - Node.js (version 18 or above)
-- npm (version 8 or above)
+- pnpm (version 9 or above) - Install with `npm install -g pnpm`
 - n8n installed globally or locally
 
 ## 🔧 Local Development Setup

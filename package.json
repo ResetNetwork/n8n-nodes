@@ -3,12 +3,9 @@
   "version": "1.0.0",
   "description": "A collection of custom n8n nodes for enhanced document processing, text splitting, embeddings generation, advanced query retrieval with reranking, and extended trigger capabilities",
   "private": true,
-  "workspaces": [
-    "n8n-nodes-*"
-  ],
   "scripts": {
     "build:all": "turbo run build",
-    "build": "npm run build --workspaces",
+    "build": "pnpm -r run build",
     "dev": "turbo run dev",
     "lint": "turbo run lint",
     "lintfix": "turbo run lintfix",
@@ -60,8 +57,10 @@
     "npm": ">=8.0.0",
     "pnpm": ">=9.0.0"
   },
-  "overrides": {
-    "@langchain/community": ">=0.3.3"
+  "pnpm": {
+    "overrides": {
+      "@langchain/community": ">=0.3.3"
+    }
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.4",
