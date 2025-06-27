@@ -41,8 +41,8 @@ cd n8n-nodes
 # Install dependencies for all packages
 npm install
 
-# Build all packages
-npm run build
+# Build all packages (optimized with Turborepo caching)
+npm run build:all
 
 # Set up local development environment
 ./setup-local.sh
@@ -53,31 +53,53 @@ npm run build
 
 ## 🛠️ Development
 
-This repository uses npm workspaces to manage multiple packages. Here are the available commands:
+This repository uses [pnpm workspaces](https://pnpm.io/workspaces) with [Turborepo](https://turborepo.com/) for optimized build caching and task orchestration, plus [Changesets](https://github.com/changesets/changesets) for version management.
 
 ### Root Level Commands
 
 ```bash
 # Install dependencies for all packages
-npm install
+pnpm install
 
-# Build all packages
-npm run build
+# Build all packages (optimized with Turborepo caching)
+pnpm run build:all
+
+# Build all packages (using pnpm workspaces)
+pnpm run build
+
+# Build only packages that changed since last commit
+pnpm run build:changed
 
 # Run linting on all packages
-npm run lint
+pnpm run lint
 
 # Fix linting issues in all packages
-npm run lintfix
+pnpm run lintfix
 
 # Format code in all packages
-npm run format
+pnpm run format
 
-# Run development mode for all packages
-npm run dev
+# Run development mode for all packages (with watch mode)
+pnpm run dev
 
-# Publish all packages to npm (requires proper permissions)
-npm run publish-all
+# Run tests across all packages
+pnpm run test
+```
+
+### Release Management Commands
+
+```bash
+# Create a changeset after making changes
+pnpm run changeset
+
+# Update package versions based on changesets
+pnpm run version-packages
+
+# Publish updated packages to npm
+pnpm run release
+
+# Legacy publish method (backup)
+pnpm run publish-all
 ```
 
 ### Helper Scripts
@@ -108,7 +130,7 @@ npm run dev
 ## 📋 Prerequisites
 
 - Node.js (version 18 or above)
-- npm (version 8 or above)
+- pnpm (version 9 or above) - Install with `npm install -g pnpm`
 - n8n installed globally or locally
 
 ## 🔧 Local Development Setup
@@ -179,42 +201,72 @@ If you prefer manual setup:
 
 ## 📦 Publishing to npm
 
+This repository uses [Changesets](https://github.com/changesets/changesets) for version management and publishing.
+
 ### Prerequisites for Publishing
 
 1. **npm Account**: You need an npm account with access to publish packages
 2. **Organization Access**: For publishing under an organization scope, you need appropriate permissions
 3. **Authentication**: Login to npm via `npm login`
 
-### Publishing Individual Packages
+### Release Workflow with Changesets
 
-To publish a single package:
+#### 1. Create a Changeset
+
+After making changes to any package, create a changeset to document the changes:
 
 ```bash
-cd n8n-nodes-semantic-splitter-with-context
-npm publish --access public
+npm run changeset
 ```
 
-### Publishing All Packages
+This will:
+- Prompt you to select which packages have changed
+- Ask for the type of change (patch, minor, major)
+- Let you write a summary of the changes
+- Create a changeset file in `.changeset/`
 
-To publish all packages at once:
+#### 2. Version Packages
+
+When ready to release, update package versions based on changesets:
+
+```bash
+npm run version-packages
+```
+
+This will:
+- Update package.json versions according to changesets
+- Update CHANGELOG.md files
+- Remove consumed changeset files
+
+#### 3. Publish to npm
+
+Publish the updated packages:
+
+```bash
+npm run release
+```
+
+This will:
+- Publish all packages with updated versions to npm
+- Use the configured public access
+
+### Legacy Publishing (Backup)
+
+The old publishing method is still available:
 
 ```bash
 npm run publish-all
 ```
 
-This will:
-- Build all packages
-- Run linting
-- Publish all packages with public access
+### Changeset Best Practices
 
-### Version Management
-
-Before publishing, update the version in the package's `package.json`:
-
-```bash
-cd n8n-nodes-semantic-splitter-with-context
-npm version patch  # or minor, major
-```
+- **Create changesets immediately** after making changes
+- **Use semantic versioning** appropriately:
+  - `patch`: Bug fixes and non-breaking changes
+  - `minor`: New features that are backward compatible
+  - `major`: Breaking changes
+- **Write clear changeset summaries** that explain the impact to users
+- **Group related changes** in a single changeset when appropriate
 
 ## 🧪 Testing
 
@@ -326,9 +378,17 @@ We welcome contributions! Please follow these guidelines:
 ### Development Workflow
 
 1. Make your changes in the respective node's source files
-2. Run the build command: `npm run build`
+2. Run the build command: `npm run build:all` (or `npm run build` for legacy method)
 3. Test in n8n
 4. For active development, use watch mode: `npm run dev`
+5. Before committing, create a changeset: `npm run changeset`
+
+### Turborepo Benefits
+
+- **Build caching**: Only rebuilds packages that have changed
+- **Parallel execution**: Runs tasks across packages simultaneously  
+- **Incremental builds**: Use `npm run build:changed` to build only modified packages
+- **Task orchestration**: Optimizes task dependencies and execution order
 
 ## 📄 License
 

@@ -1,0 +1,25 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "tasks": {
+    "build": {
+      "outputs": ["dist/**"],
+      "inputs": ["nodes/**", "tsconfig.json", "gulpfile.js", "package.json"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "lint": {
+      "inputs": ["nodes/**", ".eslintrc*", "eslint.config.js"]
+    },
+    "lintfix": {
+      "inputs": ["nodes/**", ".eslintrc*", "eslint.config.js"],
+      "outputs": ["nodes/**"]
+    },
+    "format": {
+      "inputs": ["nodes/**", ".prettierrc*"],
+      "outputs": ["nodes/**"]
+    }
+  },
+  "globalDependencies": ["package.json"]
+}
