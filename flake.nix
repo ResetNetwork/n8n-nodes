@@ -10,6 +10,9 @@
         pkgs = import inputs.nixpkgs {
           inherit system;
           overlays = [ inputs.self.overlays.default ];
+          config = {
+            allowUnfree = true;
+          };
         };
       });
     in
@@ -20,7 +23,7 @@
 
       devShells = forEachSupportedSystem ({ pkgs }: {
         default = pkgs.mkShell {
-          packages = with pkgs; [ nodejs ];
+          packages = with pkgs; [ nodejs n8n ];
           shellHook = ''
             export PATH="$PWD/node_modules/.bin:$PATH"
           '';
@@ -28,3 +31,4 @@
       });
     };
 }
+

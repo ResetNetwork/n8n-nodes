@@ -140,3 +140,6 @@ out
 test-*.json
 *.test.js
 *.test.ts 
+
+# Turborepo cache
+.turbo/
