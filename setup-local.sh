@@ -7,12 +7,19 @@ set -e  # Exit on error
 
 echo "🚀 Setting up n8n custom nodes for local development..."
 
-# Check if n8n is installed
+# Ensure n8n is installed and up to date
 if ! command -v n8n &> /dev/null; then
-    echo "❌ n8n is not installed globally. Installing n8n..."
-    npm install n8n -g
+    echo "❌ n8n is not installed globally. Installing latest n8n..."
+    npm install -g n8n@latest
 else
-    echo "✅ n8n is already installed"
+    CURRENT_N8N_VERSION=$(n8n -v 2>/dev/null | head -n1 | sed -E 's#^.*/##')
+    LATEST_N8N_VERSION=$(npm view n8n version 2>/dev/null || echo "")
+    if [ -n "$LATEST_N8N_VERSION" ] && [ "$CURRENT_N8N_VERSION" != "$LATEST_N8N_VERSION" ]; then
+        echo "⬆️  Updating n8n from $CURRENT_N8N_VERSION to $LATEST_N8N_VERSION..."
+        npm install -g n8n@latest
+    else
+        echo "✅ n8n is up to date (version: ${CURRENT_N8N_VERSION:-unknown})"
+    fi
 fi
 
 # Get the current directory (absolute path)
