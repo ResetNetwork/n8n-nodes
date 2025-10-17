@@ -17,9 +17,6 @@ type Chunk = {
 	endIdx: number; // inclusive sentence index
 };
 
-// Ensure runtime NodeConnectionType enum is available for correct connector shapes in UI
-const NodeConnectionTypeConst = (require('n8n-workflow') as any).NodeConnectionType;
-
 // Custom implementation of Semantic Double-Pass Merging splitter with context
 class SemanticDoublePassMergingSplitterWithContext extends TextSplitter {
 	private embeddings: Embeddings;
@@ -526,17 +523,17 @@ export class SemanticSplitterWithContext implements INodeType {
 			{
 				displayName: 'Chat Model',
 				maxConnections: 1,
-				type: NodeConnectionTypeConst.AiLanguageModel,
+				type: 'aiLanguageModel' as any,
 				required: true,
 			},
 			{
 				displayName: 'Embeddings',
 				maxConnections: 1,
-				type: NodeConnectionTypeConst.AiEmbedding,
+				type: 'aiEmbedding' as any,
 				required: true,
 			},
 		],
-		outputs: [NodeConnectionTypeConst.AiTextSplitter],
+		outputs: ['aiTextSplitter' as any],
 		properties: [
 			{
 				displayName: 'Context Prompt',
