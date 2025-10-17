@@ -1,3 +1,4 @@
+import * as workflow from 'n8n-workflow';
 import {
     ISupplyDataFunctions,
     INodeType,
@@ -5,7 +6,6 @@ import {
     SupplyData,
 } from 'n8n-workflow';
 
-import { DynamicTool } from '@langchain/core/tools';
 import type { BaseLanguageModel } from '@langchain/core/language_models/base';
 import type { VectorStore } from '@langchain/core/vectorstores';
 import type { Embeddings } from '@langchain/core/embeddings';
@@ -46,34 +46,28 @@ export class QueryRetrieverRerank implements INodeType {
 			{
 				displayName: 'Vector',
 				maxConnections: 1,
-                type: 'aiVectorStore' as any,
+                type: (workflow as any).NodeConnectionType.AiVectorStore,
 			},
 			{
 				displayName: 'LLM',
 				maxConnections: 1,
-                type: 'aiLanguageModel' as any,
+                type: (workflow as any).NodeConnectionType.AiLanguageModel,
 			},
 			{
 				displayName: 'Embed',
 				maxConnections: 1,
-                type: 'aiEmbedding' as any,
+                type: (workflow as any).NodeConnectionType.AiEmbedding,
 				required: true,
 			},
 			{
 				displayName: 'Debug',
 				maxConnections: 1,
-                type: 'aiMemory' as any,
+                type: (workflow as any).NodeConnectionType.AiMemory,
 				required: false,
 			},
 		],
-        outputs: [
-            {
-                displayName: 'Tool',
-                maxConnections: 1,
-                type: 'aiTool' as any,
-            },
-        ],
-		outputNames: ['Tool'],
+        outputs: [(workflow as any).NodeConnectionType.AiTool],
+        outputNames: ['Tool'],
 		properties: [
             getConnectionHintNoticeField(['aiAgent']),
 			{
@@ -350,7 +344,9 @@ export class QueryRetrieverRerank implements INodeType {
 		}. Supports AI-controlled retrieval parameters.`;
 
 		// Create the DynamicTool
-		const tool = new DynamicTool({
+        // Lazy-load DynamicTool at runtime to avoid class-load failures if module resolution is isolated
+        const { DynamicTool } = await import('@langchain/core/tools');
+        const tool = new DynamicTool({
 			name,
 			description: enhancedDescription,
 			func: async (input: string) => {

@@ -1,3 +1,4 @@
+import * as workflow from 'n8n-workflow';
 import {
 	INodeType,
 	INodeTypeDescription,
@@ -523,23 +524,18 @@ export class SemanticSplitterWithContext implements INodeType {
 			{
 				displayName: 'Chat Model',
 				maxConnections: 1,
-				type: 'aiLanguageModel' as any,
+				type: (workflow as any).NodeConnectionType.AiLanguageModel,
 				required: true,
 			},
 			{
 				displayName: 'Embeddings',
 				maxConnections: 1,
-				type: 'aiEmbedding' as any,
+				type: (workflow as any).NodeConnectionType.AiEmbedding,
 				required: true,
 			},
 		],
-		outputs: [
-			{
-				displayName: 'Text Splitter',
-				maxConnections: 1,
-				type: 'aiTextSplitter' as any,
-			},
-		],
+		outputs: [(workflow as any).NodeConnectionType.AiTextSplitter],
+		outputNames: ['Text Splitter'],
 		properties: [
 			{
 				displayName: 'Context Prompt',
