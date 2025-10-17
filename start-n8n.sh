@@ -75,10 +75,11 @@ fi
 
 echo ""
 
-# Enable debug logging
+# Enable debug logging and ensure custom extensions are loaded
 export N8N_LOG_LEVEL=debug
 export N8N_LOG_OUTPUT=console
 export CODE_ENABLE_STDOUT=true
+export N8N_CUSTOM_EXTENSIONS="$N8N_CUSTOM_DIR"
 
 echo "📝 Starting n8n with debug logging enabled..."
 echo "   n8n URL: http://localhost:5678"
