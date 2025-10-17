@@ -4,7 +4,6 @@ import {
 	NodeConnectionType,
 	ISupplyDataFunctions,
 	SupplyData,
-  NodeOperationError,
 } from 'n8n-workflow';
 
 import { Document } from '@langchain/core/documents';
@@ -27,12 +26,10 @@ class SemanticDoublePassMergingSplitterWithContext extends TextSplitter {
 	private secondPassThreshold: number;
 	private contextPrompt: string;
 	private includeLabels: boolean;
-  private node?: any;
 
 	constructor(
 		embeddings: Embeddings,
 		chatModel: BaseLanguageModel,
-    node?: any,
 		options: {
 			bufferSize?: number;
 			breakpointThresholdType?: 'percentile' | 'standard_deviation' | 'interquartile' | 'gradient';
@@ -47,7 +44,6 @@ class SemanticDoublePassMergingSplitterWithContext extends TextSplitter {
 		} = {},
 	) {
 		super();
-    this.node = node;
 		this.embeddings = embeddings;
 		this.chatModel = chatModel;
 		this.bufferSize = options.bufferSize ?? 1;
@@ -66,13 +62,12 @@ class SemanticDoublePassMergingSplitterWithContext extends TextSplitter {
 		// Handle empty or whitespace-only text
 		if (!text || text.trim().length === 0) return [];
 
-    const MAX_TEXT_LENGTH = 10_000_000; // 10 MB
-    if (text.length > MAX_TEXT_LENGTH) {
-      throw new NodeOperationError(
-        this.node() || ({} as any),
-        `Input text is too large (${text.length} characters). Masimum allowed is ${MAX_TEXT_LENGTH} characters.`,
-      );
-    }
+		const MAX_TEXT_LENGTH = 10_000_000; // 10 MB
+		if (text.length > MAX_TEXT_LENGTH) {
+			throw new Error(
+				`Input text is too large (${text.length} characters). Maximum allowed is ${MAX_TEXT_LENGTH} characters.`,
+			);
+		}
 
 		// Split text into sentences
 		const sentences = this._splitTextIntoSentences(text);
