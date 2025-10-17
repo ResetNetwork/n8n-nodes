@@ -1,10 +1,9 @@
 import {
-	INodeType,
-	INodeTypeDescription,
-	NodeConnectionType,
-	NodeOperationError,
-	ISupplyDataFunctions,
-	SupplyData,
+    INodeType,
+    INodeTypeDescription,
+    NodeOperationError,
+    ISupplyDataFunctions,
+    SupplyData,
 } from 'n8n-workflow';
 
 import { Document } from '@langchain/core/documents';
@@ -37,22 +36,22 @@ export class ContextualDocumentLoader implements INodeType {
 			},
 		},
 		// eslint-disable-next-line n8n-nodes-base/node-class-description-inputs-wrong-regular-node
-		inputs: [
+        inputs: [
 			{
 				displayName: 'Chat Model',
 				maxConnections: 1,
-				type: NodeConnectionType.AiLanguageModel,
+                type: 'aiLanguageModel' as any,
 				required: true,
 			},
 			{
 				displayName: 'Text Splitter',
 				maxConnections: 1,
-				type: NodeConnectionType.AiTextSplitter,
+                type: 'aiTextSplitter' as any,
 				required: true,
 			},
 		],
 		// eslint-disable-next-line n8n-nodes-base/node-class-description-outputs-wrong
-		outputs: [NodeConnectionType.AiDocument],
+        outputs: ['aiDocument' as any],
 		outputNames: ['Document'],
 		properties: [
 			{
@@ -68,7 +67,7 @@ export class ContextualDocumentLoader implements INodeType {
 				},
 				description: 'This node is DEPRECATED and has known issues. Please use &lt;strong&gt;n8n-nodes-semantic-splitter-with-context&lt;/strong&gt; instead for better functionality and active maintenance.',
 			},
-			getConnectionHintNoticeField([NodeConnectionType.AiVectorStore]),
+            getConnectionHintNoticeField(['aiVectorStore']),
 			{
 				displayName: 'Context Prompt',
 				name: 'contextPrompt',
@@ -133,8 +132,8 @@ export class ContextualDocumentLoader implements INodeType {
 		console.log('ContextualDocumentLoader.supplyData called with itemIndex:', itemIndex);
 		
 		// Get the language model (required)
-		const model = (await this.getInputConnectionData(
-			NodeConnectionType.AiLanguageModel,
+        const model = (await this.getInputConnectionData(
+            'aiLanguageModel' as any,
 			0,
 		)) as BaseLanguageModel;
 
@@ -146,8 +145,8 @@ export class ContextualDocumentLoader implements INodeType {
 		}
 
 		// Get the text splitter (required)
-		const textSplitter = (await this.getInputConnectionData(
-			NodeConnectionType.AiTextSplitter,
+        const textSplitter = (await this.getInputConnectionData(
+            'aiTextSplitter' as any,
 			0,
 		)) as TextSplitter | undefined;
 
