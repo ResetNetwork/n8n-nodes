@@ -66,7 +66,13 @@ export class QueryRetrieverRerank implements INodeType {
 				required: false,
 			},
 		],
-        outputs: ['aiTool' as any],
+        outputs: [
+            {
+                displayName: 'Tool',
+                maxConnections: 1,
+                type: 'aiTool' as any,
+            },
+        ],
 		outputNames: ['Tool'],
 		properties: [
             getConnectionHintNoticeField(['aiAgent']),

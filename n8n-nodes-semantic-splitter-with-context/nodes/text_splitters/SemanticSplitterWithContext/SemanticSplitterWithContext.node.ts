@@ -533,7 +533,13 @@ export class SemanticSplitterWithContext implements INodeType {
 				required: true,
 			},
 		],
-		outputs: ['aiTextSplitter' as any],
+		outputs: [
+			{
+				displayName: 'Text Splitter',
+				maxConnections: 1,
+				type: 'aiTextSplitter' as any,
+			},
+		],
 		properties: [
 			{
 				displayName: 'Context Prompt',
