@@ -1,10 +1,10 @@
-import { ISupplyDataFunctions, NodeConnectionType, NodeOperationError } from 'n8n-workflow';
+import { ISupplyDataFunctions, NodeOperationError } from 'n8n-workflow';
 
 async function callMethodAsync<T>(
 	this: T,
 	parameters: {
 		executeFunctions: ISupplyDataFunctions;
-		connectionType: NodeConnectionType;
+        connectionType: any;
 		currentNodeRunIndex: number;
 		method: (...args: any[]) => Promise<unknown>;
 		arguments: unknown[];
@@ -47,7 +47,7 @@ export function logWrapper<T extends object>(originalInstance: T, executeFunctio
 				if (prop === 'embedDocuments' && 'embedDocuments' in target) {
 					return async (documents: string[]): Promise<number[][]> => {
 						console.log('VertexEmbeddingsLogWrapper: embedDocuments intercepted, docs:', documents?.length || 0);
-						const connectionType = NodeConnectionType.AiEmbedding;
+                        const connectionType = 'aiEmbedding' as any;
 
 						// Log input data
 						const { index } = executeFunctions.addInputData(connectionType, [
@@ -80,7 +80,7 @@ export function logWrapper<T extends object>(originalInstance: T, executeFunctio
 				if (prop === 'embedQuery' && 'embedQuery' in target) {
 					return async (query: string): Promise<number[]> => {
 						console.log('VertexEmbeddingsLogWrapper: embedQuery intercepted, query length:', query?.length || 0);
-						const connectionType = NodeConnectionType.AiEmbedding;
+                        const connectionType = 'aiEmbedding' as any;
 
 						// Log input data
 						const { index } = executeFunctions.addInputData(connectionType, [

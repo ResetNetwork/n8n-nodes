@@ -1,11 +1,10 @@
 import {
-	ISupplyDataFunctions,
-	INodeType,
-	INodeTypeDescription,
-	SupplyData,
-	NodeConnectionType,
-	ILoadOptionsFunctions,
-	INodePropertyOptions,
+    ISupplyDataFunctions,
+    INodeType,
+    INodeTypeDescription,
+    SupplyData,
+    ILoadOptionsFunctions,
+    INodePropertyOptions,
 } from 'n8n-workflow';
 
 import { VertexAIEmbeddings } from '@langchain/google-vertexai';
@@ -42,8 +41,8 @@ export class EmbeddingsGoogleVertexExtended implements INodeType {
 		],
 		// This is a sub-node, it has no inputs
 		inputs: [],
-		// And it supplies data to the root node
-		outputs: [NodeConnectionType.AiEmbedding],
+        // And it supplies data to the root node
+        outputs: ['aiEmbedding' as any],
 		outputNames: ['Embeddings'],
 		properties: [
 			{
