@@ -49,9 +49,9 @@
   "devDependencies": {
     "@eslint/js": "^9.29.0",
     "@langchain/core": "*",
-    "@langchain/google-genai": "^0.2.12",
+    "@langchain/google-genai": "^0.2.18",
     "@langchain/textsplitters": "*",
-    "@types/node": "^22.15.32",
+    "@types/node": "^22.18.11",
     "@typescript-eslint/eslint-plugin": "^8.34.1",
     "@typescript-eslint/parser": "^8.34.1",
     "eslint": "^9.29.0",

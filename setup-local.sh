@@ -59,18 +59,21 @@ check_and_fix_package() {
 check_build() {
     local dir="$1"
     echo "    Checking build for $dir..."
-    if npm run build > /dev/null 2>&1; then
+    if npm run build > build.log 2>&1; then
         echo "    ✅ Build successful"
         return 0
     else
-        echo "    ⚠️  Build failed, attempting to install missing dependencies..."
+        echo "    ⚠️  Build failed. Showing last 40 lines of build.log:"
+        tail -n 40 build.log || true
+        echo "    ⚠️  Attempting to install common missing dependencies..."
         # Try to install common missing dependencies
         npm install @types/node @langchain/google-genai --save-dev > /dev/null 2>&1 || true
-        if npm run build > /dev/null 2>&1; then
+        if npm run build >> build.log 2>&1; then
             echo "    ✅ Build successful after installing dependencies"
             return 0
         else
             echo "    ❌ Build still failing, skipping this node"
+            echo "    ℹ️  See $ROOT_DIR/$dir/build.log for full details"
             return 1
         fi
     fi

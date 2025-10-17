@@ -1,11 +1,11 @@
-import { ISupplyDataFunctions, NodeConnectionType, NodeOperationError } from 'n8n-workflow';
+import { ISupplyDataFunctions, NodeOperationError } from 'n8n-workflow';
 import { TextSplitter } from '@langchain/textsplitters';
 
 async function callMethodAsync<T>(
 	this: T,
 	parameters: {
 		executeFunctions: ISupplyDataFunctions;
-		connectionType: NodeConnectionType;
+		connectionType: any;
 		currentNodeRunIndex: number;
 		method: (...args: any[]) => Promise<unknown>;
 		arguments: unknown[];
@@ -32,23 +32,28 @@ function logAiEvent(executeFunctions: ISupplyDataFunctions, eventType: string): 
 }
 
 export function logWrapper<T extends object>(originalInstance: T, executeFunctions: ISupplyDataFunctions): T {
-	console.log('LogWrapper: Wrapping instance of type:', originalInstance.constructor.name);
+    const debugEnabled = process.env.N8N_NODES_DEBUG === '1' || process.env.N8N_NODES_DEBUG === 'true';
+    if (debugEnabled) {
+        console.log('LogWrapper: Wrapping instance of type:', originalInstance.constructor.name);
+    }
 	
 	return new Proxy(originalInstance, {
 		get(target, prop, receiver) {
 			const originalValue = Reflect.get(target, prop, receiver);
 			
 			// Log all method calls for debugging
-			if (typeof originalValue === 'function' && typeof prop === 'string') {
-				console.log('LogWrapper: Method accessed:', prop);
+            if (debugEnabled && typeof originalValue === 'function' && typeof prop === 'string') {
+                console.log('LogWrapper: Method accessed:', prop);
 			}
 
 			// Handle TextSplitter specifically
 			if (originalInstance instanceof TextSplitter) {
 				if (prop === 'splitText' && 'splitText' in target) {
-					return async (text: string): Promise<string[]> => {
-						console.log('LogWrapper: splitText intercepted, text length:', text?.length || 0);
-						const connectionType = NodeConnectionType.AiTextSplitter;
+                    return async (text: string): Promise<string[]> => {
+                        if (debugEnabled) {
+                            console.log('LogWrapper: splitText intercepted, text length:', text?.length || 0);
+                        }
+                        const connectionType = 'aiTextSplitter' as any;
 
 						// Log input data
 						const { index } = executeFunctions.addInputData(connectionType, [
@@ -64,7 +69,9 @@ export function logWrapper<T extends object>(originalInstance: T, executeFunctio
 							arguments: [text],
 						})) as string[];
 
-						console.log('LogWrapper: splitText completed, chunks:', response?.length || 0);
+                        if (debugEnabled) {
+                            console.log('LogWrapper: splitText completed, chunks:', response?.length || 0);
+                        }
 
 						// Log AI event
 						logAiEvent(executeFunctions, 'ai-text-split');
@@ -79,9 +86,11 @@ export function logWrapper<T extends object>(originalInstance: T, executeFunctio
 				}
 
 				if (prop === 'splitDocuments' && 'splitDocuments' in target) {
-					return async (documents: any[]): Promise<any[]> => {
-						console.log('LogWrapper: splitDocuments intercepted, docs:', documents?.length || 0);
-						const connectionType = NodeConnectionType.AiTextSplitter;
+                    return async (documents: any[]): Promise<any[]> => {
+                        if (debugEnabled) {
+                            console.log('LogWrapper: splitDocuments intercepted, docs:', documents?.length || 0);
+                        }
+                        const connectionType = 'aiTextSplitter' as any;
 
 						// Log input data
 						const { index } = executeFunctions.addInputData(connectionType, [
@@ -97,7 +106,9 @@ export function logWrapper<T extends object>(originalInstance: T, executeFunctio
 							arguments: [documents],
 						})) as any[];
 
-						console.log('LogWrapper: splitDocuments completed, chunks:', response?.length || 0);
+                        if (debugEnabled) {
+                            console.log('LogWrapper: splitDocuments completed, chunks:', response?.length || 0);
+                        }
 
 						// Log AI event
 						logAiEvent(executeFunctions, 'ai-text-split');

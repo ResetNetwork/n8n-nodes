@@ -47,7 +47,8 @@
     ]
   },
   "devDependencies": {
-    "@types/node": "^18.16.16",
+    "@langchain/google-genai": "^0.2.18",
+    "@types/node": "^18.19.130",
     "eslint": "^8.42.0",
     "gulp": "^4.0.2",
     "n8n-workflow": "*",

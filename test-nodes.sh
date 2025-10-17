@@ -10,7 +10,11 @@ export N8N_CUSTOM_EXTENSIONS="$HOME/.n8n/custom"
 
 # Start n8n in the background and capture output
 echo "🚀 Starting n8n to test node loading..."
-timeout 10s n8n start > n8n_test_output.log 2>&1 &
+if command -v timeout >/dev/null 2>&1; then
+    timeout 10s n8n start > n8n_test_output.log 2>&1 &
+else
+    n8n start > n8n_test_output.log 2>&1 &
+fi
 N8N_PID=$!
 
 # Wait a bit for n8n to start

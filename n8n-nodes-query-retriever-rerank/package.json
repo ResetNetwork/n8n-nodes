@@ -52,7 +52,8 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.29.0",
-    "@types/node": "^22.15.32",
+    "@langchain/google-genai": "^0.2.18",
+    "@types/node": "^22.18.11",
     "@typescript-eslint/eslint-plugin": "^8.34.1",
     "@typescript-eslint/parser": "^8.34.1",
     "eslint": "^9.29.0",
@@ -63,9 +64,9 @@
     "typescript": "^5.3.3"
   },
   "peerDependencies": {
-    "n8n-workflow": "^1.25.1",
     "@langchain/core": "*",
-    "langchain": "*"
+    "langchain": "*",
+    "n8n-workflow": "^1.25.1"
   },
   "engines": {
     "node": ">=18.0.0"

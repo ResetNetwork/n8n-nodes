@@ -1,7 +1,6 @@
 import {
 	INodeType,
 	INodeTypeDescription,
-	NodeConnectionType,
 	ISupplyDataFunctions,
 	SupplyData,
 } from 'n8n-workflow';
@@ -50,7 +49,12 @@ class SemanticDoublePassMergingSplitterWithContext extends TextSplitter {
 		this.breakpointThresholdType = options.breakpointThresholdType ?? 'percentile';
 		this.breakpointThresholdAmount = options.breakpointThresholdAmount;
 		this.numberOfChunks = options.numberOfChunks;
-		this.sentenceSplitRegex = new RegExp(options.sentenceSplitRegex ?? '(?<=[.?!])\\s+');
+		try {
+			this.sentenceSplitRegex = new RegExp(options.sentenceSplitRegex ?? '(?<=[.?!])\\s+');
+		} catch {
+			// Fallback to default if user provided invalid regex
+			this.sentenceSplitRegex = new RegExp('(?<=[.?!])\\s+');
+		}
 		this.minChunkSize = options.minChunkSize;
 		this.maxChunkSize = options.maxChunkSize;
 		this.secondPassThreshold = options.secondPassThreshold ?? 0.8;
@@ -168,7 +172,19 @@ ${this.contextPrompt}`;
 
 			// Generate context using the chat model
 			const response = await this.chatModel.invoke(fullPrompt);
-			const context = typeof response === 'string' ? response : response.content;
+			let context: string = '';
+			if (typeof response === 'string') {
+				context = response;
+			} else if (response && typeof (response as any).content === 'string') {
+				context = (response as any).content as string;
+			} else if (response && Array.isArray((response as any).content)) {
+				// Join text portions of content blocks if present
+				const blocks = (response as any).content as Array<any>;
+				context = blocks
+					.map((b) => (typeof b?.text === 'string' ? b.text : typeof b === 'string' ? b : ''))
+					.filter(Boolean)
+					.join('\n');
+			}
 			
 			// Combine context and chunk with selected format
 			return this._formatContextualOutput(context, chunk);
@@ -499,7 +515,7 @@ export class SemanticSplitterWithContext implements INodeType {
 			resources: {
 				primaryDocumentation: [
 					{
-						url: 'https://docs.n8n.io/integrations/builtin/cluster-nodes/sub-nodes/n8n-nodes-langchain.textsplittercontextualsemantic/',
+						url: 'https://github.com/ResetNetwork/n8n-nodes/tree/main/n8n-nodes-semantic-splitter-with-context#readme',
 					},
 				],
 			},
@@ -508,13 +524,13 @@ export class SemanticSplitterWithContext implements INodeType {
 			{
 				displayName: 'Chat Model',
 				maxConnections: 1,
-				type: NodeConnectionType.AiLanguageModel,
+				type: 'aiLanguageModel' as any,
 				required: true,
 			},
 			{
 				displayName: 'Embeddings',
 				maxConnections: 1,
-				type: NodeConnectionType.AiEmbedding,
+				type: 'aiEmbedding' as any,
 				required: true,
 			},
 		],
@@ -522,7 +538,7 @@ export class SemanticSplitterWithContext implements INodeType {
 			{
 				displayName: 'Text Splitter',
 				maxConnections: 1,
-				type: NodeConnectionType.AiTextSplitter,
+				type: 'aiTextSplitter' as any,
 			},
 		],
 		properties: [
@@ -533,7 +549,7 @@ export class SemanticSplitterWithContext implements INodeType {
 				typeOptions: {
 					rows: 4,
 				},
-				default: `Please generate a short succinct context summary to situate this text chunk within the overall document to enhance search retrieval, two or three sentances max. The chunk contains merged content from different document sections, so focus on the main topics and concepts rather than sequential flow. Answer only with the succinct context and nothing else.`,
+				default: `Please generate a short succinct context summary to situate this text chunk within the overall document to enhance search retrieval, two or three sentences max. The chunk contains merged content from different document sections, so focus on the main topics and concepts rather than sequential flow. Answer only with the succinct context and nothing else.`,
 				description: 'Instructions for the AI model on how to generate contextual descriptions. The document and chunk will be automatically provided in the prompt structure.',
 			},
 			{
@@ -651,12 +667,12 @@ export class SemanticSplitterWithContext implements INodeType {
 		console.log('ContextualSemanticSplitter: supplyData called!');
 		
 		const chatModel = (await this.getInputConnectionData(
-			NodeConnectionType.AiLanguageModel,
+			'aiLanguageModel' as any,
 			itemIndex,
 		)) as BaseLanguageModel;
 
 		const embeddings = (await this.getInputConnectionData(
-			NodeConnectionType.AiEmbedding,
+			'aiEmbedding' as any,
 			itemIndex,
 		)) as Embeddings;
 

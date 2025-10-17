@@ -77,7 +77,7 @@ n8n start
 The context prompt is the instruction given to the AI model for generating contextual descriptions. The default prompt is:
 
 ```
-Please generate a short succinct context summary to situate this text chunk within the overall document to enhance search retrieval, two or three sentances max. The chunk contains merged content from different document sections, so focus on the main topics and concepts rather than sequential flow. Answer only with the succinct context and nothing else.
+Please generate a short succinct context summary to situate this text chunk within the overall document to enhance search retrieval, two or three sentences max. The chunk contains merged content from different document sections, so focus on the main topics and concepts rather than sequential flow. Answer only with the succinct context and nothing else.
 ```
 
 The document and chunk content are automatically provided to the AI model in a structured format. You only need to customize the instructions for how the context should be generated.
