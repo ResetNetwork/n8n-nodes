@@ -33,6 +33,10 @@ A custom n8n node that provides semantic text splitting with contextual enhancem
 - npm
 - n8n installed globally or locally
 
+### Dependencies
+
+This node uses n8n's built-in LangChain integration. The package declares LangChain as peer dependencies to ensure type compatibility, but at runtime n8n provides the required modules. You typically do not need to install additional LangChain packages yourself when using this node inside n8n.
+
 ### Setup
 
 1. Clone the repository:
