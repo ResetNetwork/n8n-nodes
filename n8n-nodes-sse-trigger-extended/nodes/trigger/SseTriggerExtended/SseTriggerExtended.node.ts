@@ -1,11 +1,10 @@
 import type {
-	IDataObject,
-	INodeType,
-	INodeTypeDescription,
-	ITriggerFunctions,
-	ITriggerResponse,
+    IDataObject,
+    INodeType,
+    INodeTypeDescription,
+    ITriggerFunctions,
+    ITriggerResponse,
 } from 'n8n-workflow';
-import { NodeConnectionType } from 'n8n-workflow';
 
 import { jsonParse } from 'n8n-workflow';
 
@@ -30,11 +29,11 @@ export class SseTriggerExtended implements INodeType {
 			},
 		},
 		inputs: [],
-		outputs: [
-			{
-				type: NodeConnectionType.Main,
-			},
-		],
+        outputs: [
+            {
+                type: 'main' as any,
+            },
+        ],
 		credentials: [
 			{
 				name: 'httpBearerAuth',

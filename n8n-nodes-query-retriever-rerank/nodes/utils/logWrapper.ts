@@ -1,10 +1,10 @@
-import { ISupplyDataFunctions, NodeConnectionType, NodeOperationError } from 'n8n-workflow';
+import { ISupplyDataFunctions, NodeOperationError } from 'n8n-workflow';
 
 async function callMethodAsync<T>(
 	this: T,
 	parameters: {
 		executeFunctions: ISupplyDataFunctions;
-		connectionType: NodeConnectionType;
+        connectionType: any;
 		currentNodeRunIndex: number;
 		method: (...args: any[]) => Promise<unknown>;
 		arguments: unknown[];
@@ -39,7 +39,7 @@ export function logWrapper<T extends object>(originalInstance: T, executeFunctio
 			if ('_call' in target || 'call' in target) {
 				if (prop === '_call' && '_call' in target) {
 					return async (input: string): Promise<string> => {
-						const connectionType = NodeConnectionType.AiTool;
+                        const connectionType = 'aiTool' as any;
 
 						// Log input data
 						const { index } = executeFunctions.addInputData(connectionType, [
@@ -70,7 +70,7 @@ export function logWrapper<T extends object>(originalInstance: T, executeFunctio
 
 				if (prop === 'call' && 'call' in target) {
 					return async (input: string): Promise<string> => {
-						const connectionType = NodeConnectionType.AiTool;
+                        const connectionType = 'aiTool' as any;
 
 						// Log input data
 						const { index } = executeFunctions.addInputData(connectionType, [

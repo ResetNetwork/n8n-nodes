@@ -1,9 +1,8 @@
 import {
-	ISupplyDataFunctions,
-	INodeType,
-	INodeTypeDescription,
-	SupplyData,
-	NodeConnectionType,
+    ISupplyDataFunctions,
+    INodeType,
+    INodeTypeDescription,
+    SupplyData,
 } from 'n8n-workflow';
 
 import { DynamicTool } from '@langchain/core/tools';
@@ -43,34 +42,34 @@ export class QueryRetrieverRerank implements INodeType {
 			},
 		},
 		// eslint-disable-next-line n8n-nodes-base/node-class-description-inputs-wrong-regular-node
-		inputs: [
+        inputs: [
 			{
 				displayName: 'Vector',
 				maxConnections: 1,
-				type: NodeConnectionType.AiVectorStore,
+                type: 'aiVectorStore' as any,
 			},
 			{
 				displayName: 'LLM',
 				maxConnections: 1,
-				type: NodeConnectionType.AiLanguageModel,
+                type: 'aiLanguageModel' as any,
 			},
 			{
 				displayName: 'Embed',
 				maxConnections: 1,
-				type: NodeConnectionType.AiEmbedding,
+                type: 'aiEmbedding' as any,
 				required: true,
 			},
 			{
 				displayName: 'Debug',
 				maxConnections: 1,
-				type: NodeConnectionType.AiMemory,
+                type: 'aiMemory' as any,
 				required: false,
 			},
 		],
-		outputs: [NodeConnectionType.AiTool],
+        outputs: ['aiTool' as any],
 		outputNames: ['Tool'],
 		properties: [
-			getConnectionHintNoticeField([NodeConnectionType.AiAgent]),
+            getConnectionHintNoticeField(['aiAgent']),
 			{
 				displayName: 'Tool Options',
 				name: 'toolOptions',
@@ -296,10 +295,10 @@ export class QueryRetrieverRerank implements INodeType {
 		};
 
 		// Get the vector store and language model from input connections
-		const vectorStore = (await this.getInputConnectionData(NodeConnectionType.AiVectorStore, itemIndex)) as VectorStore;
-		const model = (await this.getInputConnectionData(NodeConnectionType.AiLanguageModel, 0)) as BaseLanguageModel;
-		const rerankingEmbeddings = (await this.getInputConnectionData(NodeConnectionType.AiEmbedding, 0)) as Embeddings;
-		const memory = (await this.getInputConnectionData(NodeConnectionType.AiMemory, 0)) as BaseMemory | null;
+        const vectorStore = (await this.getInputConnectionData('aiVectorStore' as any, itemIndex)) as VectorStore;
+        const model = (await this.getInputConnectionData('aiLanguageModel' as any, 0)) as BaseLanguageModel;
+        const rerankingEmbeddings = (await this.getInputConnectionData('aiEmbedding' as any, 0)) as Embeddings;
+        const memory = (await this.getInputConnectionData('aiMemory' as any, 0)) as BaseMemory | null;
 
 		if (!vectorStore) {
 			throw new Error('Vector Store input is required');
