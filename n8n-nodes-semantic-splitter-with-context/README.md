@@ -10,12 +10,16 @@ A custom n8n node that provides semantic text splitting with contextual enhancem
 - **Multiple Threshold Methods**: Percentile, standard deviation, interquartile, and gradient-based breakpoint detection
 - **Size Constraints**: Configurable minimum and maximum chunk sizes
 - **Flexible Sentence Splitting**: Customizable regex patterns for sentence detection
+- **Global Summary (optional)**: Generate one document-level summary and use it to contextualize all chunks
+- **Neighborhood Window (optional)**: Add a small sentence window before/after each chunk to provide local context with minimal tokens
 
 ## How It Works
 
 1. **Document Input**: Receives documents from document loaders
 2. **Semantic Splitting**: Splits text by using semantic similarity analysis
 3. **Context Generation**: For each chunk, generates a contextual description using the chat model
+   - Optionally includes a global document summary
+   - Optionally includes a neighborhood window (N sentences before/after the chunk)
 4. **Output Format**: Returns chunks in the format: `[context]\n\n[chunk]`
 
 ## Installation
@@ -100,6 +104,10 @@ You can choose whether to include labels in the output:
 - **Second Pass Threshold**: Similarity threshold for merging chunks in the second pass
 - **Min/Max Chunk Size**: Size constraints for generated chunks
 - **Sentence Split Regex**: Pattern for splitting text into sentences
+- **Use Global Summary**: Generate a single document summary and use it for all chunks
+- **Global Summary Prompt**: Instruction for generating the global summary
+- **Use Neighborhood Window**: Include nearby sentences around each chunk for local context
+- **Window Sentences Before/After**: How many sentences to include before/after the chunk when using the neighborhood window
 
 ## Example Workflow
 
@@ -133,6 +141,11 @@ Chunk: The company's revenue grew by 3% over the previous quarter, reaching $314
 - **Semantic Coherence**: Chunks maintain semantic meaning through intelligent boundary detection
 - **Flexible Configuration**: Adaptable to different document types and use cases
 - **RAG Optimization**: Designed specifically for Retrieval-Augmented Generation workflows
+  - Combine global summary + neighborhood window to reduce tokens while preserving context
+
+## Tips
+
+- Set `N8N_NODES_DEBUG=1` to see detailed debug logs from this node during development.
 
 ## Changelog
 
