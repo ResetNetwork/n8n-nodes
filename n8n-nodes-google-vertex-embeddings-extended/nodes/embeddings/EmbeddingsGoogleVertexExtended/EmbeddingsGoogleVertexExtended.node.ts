@@ -1,30 +1,24 @@
 import {
-	ILoadOptionsFunctions,
-	INodeType,
-	INodeTypeDescription,
-	ISupplyDataFunctions,
-	SupplyData,
+    ISupplyDataFunctions,
+    INodeType,
+    INodeTypeDescription,
+    SupplyData,
+    ILoadOptionsFunctions,
+    INodePropertyOptions,
 } from 'n8n-workflow';
 
 import { VertexAIEmbeddings } from '@langchain/google-vertexai';
 import { logWrapper } from '../../utils/logWrapper';
-import { getConnectionHintNoticeField } from '../../utils/sharedFields';
 
 export class EmbeddingsGoogleVertexExtended implements INodeType {
-
 	description: INodeTypeDescription = {
 		displayName: 'Embeddings Google Vertex Extended',
 		name: 'embeddingsGoogleVertexExtended',
-		icon: 'file:google.svg',
 		group: ['transform'],
 		version: 1,
-		description: 'Use Google Vertex Embeddings with extended features like output dimensions support',
+		description: 'Use Google Vertex AI Embeddings with output dimensions support',
 		defaults: {
 			name: 'Embeddings Google Vertex Extended',
-		},
-		requestDefaults: {
-			ignoreHttpStatusErrors: true,
-			baseURL: '={{ $credentials.host }}',
 		},
 		codex: {
 			categories: ['AI'],
@@ -45,48 +39,48 @@ export class EmbeddingsGoogleVertexExtended implements INodeType {
 				required: true,
 			},
 		],
+		// This is a sub-node, it has no inputs
 		inputs: [],
-		outputs: ['aiEmbedding' as any],
+        // And it supplies data to the root node
+        outputs: ['aiEmbedding' as any],
 		outputNames: ['Embeddings'],
 		properties: [
-			getConnectionHintNoticeField(['aiVectorStore' as any]),
-			{
-				displayName: 'Each model is using different dimensional density for embeddings. Please make sure to use the same dimensionality for your vector store. The default model is using 768-dimensional embeddings. <a href="https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/text-embeddings-api">You can find available models here</a>.',
-				name: 'notice',
-				type: 'notice',
-				default: '',
-			},
 			{
 				displayName: 'Project ID',
 				name: 'projectId',
-				type: 'string',
+				type: 'options',
 				default: '',
+				typeOptions: {
+					loadOptionsMethod: 'getProjects',
+				},
+				description: 'The Google Cloud project ID',
 				required: true,
-				description: 'Your Google Cloud project ID',
 			},
 			{
 				displayName: 'Model Name',
-				name: 'modelName',
+				name: 'model',
 				type: 'string',
-				description: 'The model which will generate the embeddings. <a href="https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/text-embeddings-api">Learn more</a>.',
-				default: 'gemini-embedding-001',
+				description:
+					'The model to use for generating embeddings. <a href="https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/text-embeddings-api">Learn more</a>.',
+				default: 'text-embedding-004',
+				placeholder: 'e.g. text-embedding-004, text-multilingual-embedding-002',
 			},
 			{
 				displayName: 'Output Dimensions',
 				name: 'outputDimensions',
 				type: 'number',
 				default: 0,
-				description: 'The number of dimensions for the output embeddings. Set to 0 to use the model default. Only supported by certain models like text-embedding-004 and text-embedding-005.',
+				description: 'The number of dimensions for the output embeddings. Set to 0 to use the model default. Only supported by certain models like text-embedding-004.',
 			},
 			{
 				displayName: 'Batch Size',
 				name: 'batchSize',
 				type: 'number',
-				default: 32,
-				description: 'Number of documents to process per API request. Higher values can improve throughput but may hit rate limits.',
+				default: 1,
+				description: 'Number of documents to process per API request. Vertex AI currently requires batchSize=1 for embedDocuments.',
 				typeOptions: {
 					minValue: 1,
-					maxValue: 250,
+					maxValue: 100,
 				},
 			},
 			{
@@ -97,6 +91,13 @@ export class EmbeddingsGoogleVertexExtended implements INodeType {
 				type: 'collection',
 				default: {},
 				options: [
+					{
+						displayName: 'Region',
+						name: 'region',
+						type: 'string',
+						default: 'us-central1',
+						description: 'The region where the model is deployed',
+					},
 					{
 						displayName: 'Task Type',
 						name: 'taskType',
@@ -131,25 +132,72 @@ export class EmbeddingsGoogleVertexExtended implements INodeType {
 		],
 	};
 
+	methods = {
+		loadOptions: {
+			async getProjects(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				const credentials = await this.getCredentials('googleApi');
+				const { GoogleAuth } = await import('google-auth-library');
+				
+				const email = credentials.email as string;
+				const privateKey = (credentials.privateKey as string).replace(/\\n/g, '\n');
+				
+				const auth = new GoogleAuth({
+					credentials: {
+						client_email: email,
+						private_key: privateKey,
+					},
+					scopes: ['https://www.googleapis.com/auth/cloud-platform'],
+				});
+
+				try {
+					const client = await auth.getClient();
+					const accessToken = await client.getAccessToken();
+					
+					const response = await fetch('https://cloudresourcemanager.googleapis.com/v1/projects', {
+						headers: {
+							'Authorization': `Bearer ${accessToken.token}`,
+						},
+					});
+
+					if (!response.ok) {
+						throw new Error('Failed to fetch projects');
+					}
+
+					const data = await response.json() as any;
+					const projects = data.projects || [];
+					
+					return projects.map((project: any) => ({
+						name: project.name || project.projectId,
+						value: project.projectId,
+					}));
+				} catch (error) {
+					console.error('Error fetching projects:', error);
+					return [];
+				}
+			},
+		},
+	};
 
 	async supplyData(this: ISupplyDataFunctions): Promise<SupplyData> {
 		console.log('GoogleVertexEmbeddings: supplyData called!');
 		
 		const credentials = await this.getCredentials('googleApi');
 		const projectId = this.getNodeParameter('projectId', 0) as string;
-		const modelName = this.getNodeParameter('modelName', 0) as string;
+		const modelName = this.getNodeParameter('model', 0) as string;
 		const outputDimensions = this.getNodeParameter('outputDimensions', 0, 0) as number;
+		const batchSize = this.getNodeParameter('batchSize', 0, 1) as number;
 		const options = this.getNodeParameter('options', 0, {}) as {
+			region?: string;
 			taskType?: string;
 		};
 
-		const region = (credentials.region as string) || 'us-central1';
+		const region = options.region || 'us-central1';
 
 		// Format private key like the official node does
 		const privateKey = (credentials.privateKey as string).replace(/\\n/g, '\n');
 
-		// Create embeddings instance using LangChain's VertexAIEmbeddings
-		const embeddings = new VertexAIEmbeddings({
+		// Create base embeddings instance using LangChain's VertexAIEmbeddings (like official node)
+		const baseEmbeddings = new VertexAIEmbeddings({
 			authOptions: {
 				projectId,
 				credentials: {
@@ -162,6 +210,57 @@ export class EmbeddingsGoogleVertexExtended implements INodeType {
 			...(outputDimensions > 0 && { outputDimensionality: outputDimensions }),
 			...(options.taskType && { taskType: options.taskType as any }),
 		});
+
+		// Create wrapper that handles configurable batch size
+		// LangChain assumes Vertex AI supports batch size 5, but it actually only supports 1
+		class BatchAwareVertexAIEmbeddings {
+			private baseEmbeddings: VertexAIEmbeddings;
+			private batchSize: number;
+
+			constructor(baseEmbeddings: VertexAIEmbeddings, batchSize: number) {
+				this.baseEmbeddings = baseEmbeddings;
+				this.batchSize = batchSize;
+			}
+
+			// Delegate embedQuery to base embeddings
+			async embedQuery(document: string): Promise<number[]> {
+				return this.baseEmbeddings.embedQuery(document);
+			}
+
+			async embedDocuments(documents: string[]): Promise<number[][]> {
+				// If batch size is 1, use individual embedQuery calls (current Vertex AI requirement)
+				if (this.batchSize === 1) {
+					const embeddings: number[][] = [];
+					for (const doc of documents) {
+						const embedding = await this.baseEmbeddings.embedQuery(doc);
+						embeddings.push(embedding);
+					}
+					return embeddings;
+				} else {
+					// For larger batch sizes, try the base implementation but with error handling
+					try {
+						return await this.baseEmbeddings.embedDocuments(documents);
+					} catch (error) {
+						// If batch fails, fall back to single document processing
+						console.warn('Batch processing failed, falling back to single document processing:', error);
+						const embeddings: number[][] = [];
+						for (const doc of documents) {
+							const embedding = await this.baseEmbeddings.embedQuery(doc);
+							embeddings.push(embedding);
+						}
+						return embeddings;
+					}
+				}
+			}
+
+			// Delegate other commonly used properties/methods
+			get modelName(): string {
+				return (this.baseEmbeddings as any).modelName || 'google-vertex-ai';
+			}
+		}
+
+		// Create embeddings instance with configurable batch size
+		const embeddings = new BatchAwareVertexAIEmbeddings(baseEmbeddings, batchSize);
 
 		// Return the embeddings instance wrapped with logging for visual feedback
 		console.log('GoogleVertexEmbeddings: About to wrap embeddings with logWrapper');
