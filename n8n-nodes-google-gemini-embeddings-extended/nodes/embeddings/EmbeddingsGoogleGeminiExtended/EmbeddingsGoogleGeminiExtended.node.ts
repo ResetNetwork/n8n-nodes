@@ -67,7 +67,14 @@ class CustomGoogleGenerativeAIEmbeddings {
 
 			try {
 				const response = await this.client.models.embedContent(requestConfig);
-				console.log('CustomGoogleGenerativeAI: Full API response:', JSON.stringify(response, null, 2));
+				// Log only response metadata to avoid huge vector logs
+				console.log('CustomGoogleGenerativeAI: API response metadata:', {
+					hasEmbedding: !!response.embedding,
+					hasEmbeddings: !!response.embeddings,
+					embeddingLength: response.embedding?.values?.length,
+					embeddingsCount: response.embeddings?.length,
+					firstEmbeddingLength: response.embeddings?.[0]?.values?.length
+				});
 				
 				// Try both response formats
 				const embedding = response.embedding?.values || response.embeddings?.[0]?.values;
@@ -192,7 +199,7 @@ export class EmbeddingsGoogleGeminiExtended implements INodeType {
 						property: 'model',
 					},
 				},
-				default: 'models/gemini-embedding-001',
+				default: 'models/text-embedding-004',
 			},
 			{
 				displayName: 'Output Dimensions',
