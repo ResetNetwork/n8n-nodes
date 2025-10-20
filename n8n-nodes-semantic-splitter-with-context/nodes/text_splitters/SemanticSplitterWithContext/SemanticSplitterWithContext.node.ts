@@ -16,7 +16,15 @@ import { Document } from '@langchain/core/documents';
 import { Embeddings } from '@langchain/core/embeddings';
 import { BaseLanguageModel } from '@langchain/core/language_models/base';
 import { TextSplitter } from '@langchain/textsplitters';
-import { logWrapper } from '../../utils/logWrapper';
+// Try to use n8n's built-in logWrapper if available, fallback to our custom one
+let logWrapper: any;
+try {
+	logWrapper = require('@n8n/n8n-nodes-langchain/dist/utils/logWrapper').logWrapper;
+	console.log('Using n8n built-in logWrapper');
+} catch {
+	logWrapper = require('../../utils/logWrapper').logWrapper;
+	console.log('Using custom logWrapper');
+}
 
 type Chunk = {
 	text: string;
