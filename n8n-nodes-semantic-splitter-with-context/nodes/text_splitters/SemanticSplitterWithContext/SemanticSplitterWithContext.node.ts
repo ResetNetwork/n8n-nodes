@@ -18,6 +18,12 @@ import { BaseLanguageModel } from '@langchain/core/language_models/base';
 import { TextSplitter } from '@langchain/textsplitters';
 import { logWrapper } from '../../utils/logWrapper';
 
+type Chunk = {
+	text: string;
+	startIdx: number; // inclusive sentence index
+	endIdx: number; // inclusive sentence index
+};
+
 // Custom implementation of Semantic Double-Pass Merging splitter with context
 class SemanticDoublePassMergingSplitterWithContext extends TextSplitter {
 	private embeddings: Embeddings;
@@ -32,6 +38,11 @@ class SemanticDoublePassMergingSplitterWithContext extends TextSplitter {
 	private secondPassThreshold: number;
 	private contextPrompt: string;
 	private includeLabels: boolean;
+	private useGlobalSummary: boolean;
+	private globalSummaryPrompt: string;
+	private useNeighborhoodWindow: boolean;
+	private windowSentencesBefore: number;
+	private windowSentencesAfter: number;
 
 	constructor(
 		embeddings: Embeddings,
@@ -47,6 +58,11 @@ class SemanticDoublePassMergingSplitterWithContext extends TextSplitter {
 			secondPassThreshold?: number;
 			contextPrompt?: string;
 			includeLabels?: boolean;
+			useGlobalSummary?: boolean;
+			globalSummaryPrompt?: string;
+			useNeighborhoodWindow?: boolean;
+			windowSentencesBefore?: number;
+			windowSentencesAfter?: number;
 		} = {},
 	) {
 		super();
@@ -56,89 +72,116 @@ class SemanticDoublePassMergingSplitterWithContext extends TextSplitter {
 		this.breakpointThresholdType = options.breakpointThresholdType ?? 'percentile';
 		this.breakpointThresholdAmount = options.breakpointThresholdAmount;
 		this.numberOfChunks = options.numberOfChunks;
-		this.sentenceSplitRegex = new RegExp(options.sentenceSplitRegex ?? '(?<=[.?!])\\s+');
+		try {
+			this.sentenceSplitRegex = new RegExp(options.sentenceSplitRegex ?? '(?<=[.?!])\\s+');
+		} catch {
+			// Fallback to default if user provided invalid regex
+			this.sentenceSplitRegex = new RegExp('(?<=[.?!])\\s+');
+		}
 		this.minChunkSize = options.minChunkSize;
 		this.maxChunkSize = options.maxChunkSize;
 		this.secondPassThreshold = options.secondPassThreshold ?? 0.8;
 		this.contextPrompt = options.contextPrompt ?? `Generate a brief contextual summary for this text chunk to enhance search retrieval, two to three short sentences max. The chunk contains merged content from different document sections, so focus on the main topics and concepts rather than the sequential flow. Answer only with the succinct context and nothing else.`;
 		this.includeLabels = options.includeLabels ?? false;
+		this.useGlobalSummary = options.useGlobalSummary ?? false;
+		this.globalSummaryPrompt = options.globalSummaryPrompt ?? `Summarize the following document in 5-7 sentences, focusing on the main topics and concepts that would help retrieve relevant chunks.`;
+		this.useNeighborhoodWindow = options.useNeighborhoodWindow ?? false;
+		this.windowSentencesBefore = options.windowSentencesBefore ?? 2;
+		this.windowSentencesAfter = options.windowSentencesAfter ?? 2;
 	}
 
 	async splitText(text: string): Promise<string[]> {
 		// Handle empty or whitespace-only text
 		if (!text || text.trim().length === 0) return [];
 
-		// Split text into sentences
+		const MAX_TEXT_LENGTH = 10_000_000; // 10 MB
+		if (text.length > MAX_TEXT_LENGTH) {
+			throw new Error(
+				`Input text is too large (${text.length} characters). Maximum allowed is ${MAX_TEXT_LENGTH} characters.`,
+			);
+		}
+
+		const { chunks } = await this._splitTextWithChunks(text);
+		return chunks.map((c) => c.text);
+	}
+
+	private async _splitTextWithChunks(text: string): Promise<{ chunks: Chunk[]; sentences: string[] }> {
 		const sentences = this._splitTextIntoSentences(text);
-		if (sentences.length === 0) return [];
-		
-		// Handle single sentence case
+		if (sentences.length === 0) return { chunks: [], sentences };
+
 		if (sentences.length === 1) {
 			const singleSentence = sentences[0]!.trim();
-			if (!singleSentence) return [];
-			
-			// Apply size constraints to single sentence
+			if (!singleSentence) return { chunks: [], sentences };
 			if (this.maxChunkSize && singleSentence.length > this.maxChunkSize) {
-				// Split by words if sentence is too long
 				const words = singleSentence.split(/\s+/);
-				const chunks: string[] = [];
-				let currentChunk = '';
-				
+				const out: Chunk[] = [];
+				let current = '';
 				for (const word of words) {
-					if (currentChunk.length + word.length + 1 <= this.maxChunkSize) {
-						currentChunk = currentChunk ? currentChunk + ' ' + word : word;
+					if ((current ? current.length + 1 : 0) + word.length <= (this.maxChunkSize ?? Infinity)) {
+						current = current ? current + ' ' + word : word;
 					} else {
-						if (currentChunk) chunks.push(currentChunk);
-						currentChunk = word;
+						if (current) out.push({ text: current, startIdx: 0, endIdx: 0 });
+						current = word;
 					}
 				}
-				if (currentChunk) chunks.push(currentChunk);
-				return chunks;
+				if (current) out.push({ text: current, startIdx: 0, endIdx: 0 });
+				return { chunks: out, sentences };
 			}
-			
-			return [singleSentence];
+			return { chunks: [{ text: singleSentence, startIdx: 0, endIdx: 0 }], sentences };
 		}
 
-		// Combine sentences for embedding
 		const combinedSentences = await this._combineSentences(sentences);
-
-		// Calculate embeddings
 		const embeddings = await this._embedSentences(combinedSentences);
-
-		// Calculate distances between consecutive embeddings
 		const distances = this._calculateDistances(embeddings);
-
-		// Handle case where we have no distances (shouldn't happen with multiple sentences, but safety check)
 		if (distances.length === 0) {
-			return sentences.map(s => s.trim()).filter(s => s.length > 0);
+			const onlyChunk: Chunk = { text: sentences.join(' ').trim(), startIdx: 0, endIdx: sentences.length - 1 };
+			return { chunks: onlyChunk.text ? [onlyChunk] : [], sentences };
 		}
-
-		// Determine breakpoints based on threshold
 		const breakpoints = this._calculateBreakpoints(distances);
-
-		// Create initial chunks
 		let chunks = this._createChunks(sentences, breakpoints);
-
-		// Second pass: merge similar adjacent chunks
 		chunks = await this._secondPassMerge(chunks);
-
-		// Apply size constraints
-		chunks = this._applySizeConstraints(chunks);
-
-		return chunks;
+		chunks = this._applySizeConstraints(chunks, sentences);
+		return { chunks, sentences };
 	}
 
 	override async splitDocuments(documents: Document[]): Promise<Document[]> {
 		const splitDocuments: Document[] = [];
 
 		for (const document of documents) {
-			const chunks = await this.splitText(document.pageContent);
+			const { chunks, sentences } = await this._splitTextWithChunks(document.pageContent);
+			let globalSummary: string | undefined;
+			if (this.useGlobalSummary) {
+				try {
+					const summaryResponse = await this.chatModel.invoke(`${this.globalSummaryPrompt}\n\n<document>\n${document.pageContent}\n</document>`);
+					if (typeof summaryResponse === 'string') {
+						globalSummary = summaryResponse;
+					} else if (summaryResponse && typeof (summaryResponse as any).content === 'string') {
+						globalSummary = (summaryResponse as any).content as string;
+					} else if (summaryResponse && Array.isArray((summaryResponse as any).content)) {
+						const blocks = (summaryResponse as any).content as Array<any>;
+						globalSummary = blocks
+							.map((b) => (typeof b?.text === 'string' ? b.text : typeof b === 'string' ? b : ''))
+							.filter(Boolean)
+							.join('\n');
+					}
+				} catch {
+					globalSummary = undefined;
+				}
+			}
 			
 			for (const chunk of chunks) {
 				// Generate contextual description for this chunk
+				let neighborhood: string | undefined;
+				if (this.useNeighborhoodWindow) {
+					const windowStart = Math.max(0, chunk.startIdx - this.windowSentencesBefore);
+					const windowEnd = Math.min(sentences.length - 1, chunk.endIdx + this.windowSentencesAfter);
+					neighborhood = sentences.slice(windowStart, windowEnd + 1).join(' ');
+				}
 				const contextualContent = await this._generateContextualContent(
 					document.pageContent,
-					chunk
+					chunk.text,
+					globalSummary,
+					neighborhood,
 				);
 				
 				splitDocuments.push(
@@ -153,21 +196,37 @@ class SemanticDoublePassMergingSplitterWithContext extends TextSplitter {
 		return splitDocuments;
 	}
 
-	private async _generateContextualContent(wholeDocument: string, chunk: string): Promise<string> {
+	private async _generateContextualContent(wholeDocument: string, chunk: string, globalSummary?: string, neighborhood?: string): Promise<string> {
 		try {
 			// Build the full prompt with hardcoded structure
-			const fullPrompt = `<document>
-${wholeDocument}
-</document>
-Here is the chunk we want to situate within the whole document
-<chunk>
-${chunk}
-</chunk>
-${this.contextPrompt}`;
+			let fullPrompt: string;
+			if (globalSummary) {
+				if (neighborhood) {
+					fullPrompt = `<document_summary>\n${globalSummary}\n</document_summary>\n<neighborhood>\n${neighborhood}\n</neighborhood>\n<chunk>\n${chunk}\n</chunk>\n${this.contextPrompt}`;
+				} else {
+					fullPrompt = `<document_summary>\n${globalSummary}\n</document_summary>\n<chunk>\n${chunk}\n</chunk>\n${this.contextPrompt}`;
+				}
+			} else if (neighborhood) {
+				fullPrompt = `<neighborhood>\n${neighborhood}\n</neighborhood>\n<chunk>\n${chunk}\n</chunk>\n${this.contextPrompt}`;
+			} else {
+				fullPrompt = `<document>\n${wholeDocument}\n</document>\n<chunk>\n${chunk}\n</chunk>\n${this.contextPrompt}`;
+			}
 
 			// Generate context using the chat model
 			const response = await this.chatModel.invoke(fullPrompt);
-			const context = typeof response === 'string' ? response : response.content;
+			let context: string = '';
+			if (typeof response === 'string') {
+				context = response;
+			} else if (response && typeof (response as any).content === 'string') {
+				context = (response as any).content as string;
+			} else if (response && Array.isArray((response as any).content)) {
+				// Join text portions of content blocks if present
+				const blocks = (response as any).content as Array<any>;
+				context = blocks
+					.map((b) => (typeof b?.text === 'string' ? b.text : typeof b === 'string' ? b : ''))
+					.filter(Boolean)
+					.join('\n');
+			}
 			
 			// Combine context and chunk with selected format
 			return this._formatContextualOutput(context, chunk);
@@ -310,37 +369,37 @@ ${this.contextPrompt}`;
 		return breakpoints;
 	}
 
-	private _createChunks(sentences: string[], breakpoints: number[]): string[] {
-		const chunks: string[] = [];
+	private _createChunks(sentences: string[], breakpoints: number[]): Chunk[] {
+		const chunks: Chunk[] = [];
 		let start = 0;
 
 		for (const breakpoint of breakpoints) {
-			const chunk = sentences.slice(start, breakpoint).join(' ');
-			if (chunk.trim()) {
-				chunks.push(chunk.trim());
+			const text = sentences.slice(start, breakpoint).join(' ');
+			if (text.trim()) {
+				chunks.push({ text: text.trim(), startIdx: start, endIdx: breakpoint - 1 });
 			}
 			start = breakpoint;
 		}
 
 		// Add the last chunk
 		if (start < sentences.length) {
-			const chunk = sentences.slice(start).join(' ');
-			if (chunk.trim()) {
-				chunks.push(chunk.trim());
+			const text = sentences.slice(start).join(' ');
+			if (text.trim()) {
+				chunks.push({ text: text.trim(), startIdx: start, endIdx: sentences.length - 1 });
 			}
 		}
 
 		return chunks;
 	}
 
-	private async _secondPassMerge(chunks: string[]): Promise<string[]> {
+	private async _secondPassMerge(chunks: Chunk[]): Promise<Chunk[]> {
 		if (chunks.length <= 1) return chunks;
 
 		// Get embeddings for all chunks
-		const chunkEmbeddings = await this.embeddings.embedDocuments(chunks);
+		const chunkEmbeddings = await this.embeddings.embedDocuments(chunks.map((c) => c.text));
 
 		// Calculate similarities between adjacent chunks
-		const mergedChunks: string[] = [];
+		const mergedChunks: Chunk[] = [];
 		let currentChunk = chunks[0]!;
 		let currentEmbedding = chunkEmbeddings[0]!;
 		let needsEmbeddingUpdate = false;
@@ -350,12 +409,16 @@ ${this.contextPrompt}`;
 
 			if (similarity >= this.secondPassThreshold) {
 				// Merge chunks
-				currentChunk = currentChunk + ' ' + chunks[i];
+				currentChunk = {
+					text: currentChunk.text + ' ' + chunks[i]!.text,
+					startIdx: currentChunk.startIdx,
+					endIdx: chunks[i]!.endIdx,
+				};
 				needsEmbeddingUpdate = true;
 			} else {
 				// If we merged chunks, recalculate embedding for the final merged chunk
 				if (needsEmbeddingUpdate) {
-					const [newEmbedding] = await this.embeddings.embedDocuments([currentChunk]);
+					const [newEmbedding] = await this.embeddings.embedDocuments([currentChunk.text]);
 					currentEmbedding = newEmbedding!;
 					needsEmbeddingUpdate = false;
 				}
@@ -369,7 +432,7 @@ ${this.contextPrompt}`;
 
 		// Add the last chunk (recalculate embedding if needed)
 		if (needsEmbeddingUpdate) {
-			const [newEmbedding] = await this.embeddings.embedDocuments([currentChunk]);
+			const [newEmbedding] = await this.embeddings.embedDocuments([currentChunk.text]);
 			currentEmbedding = newEmbedding!;
 		}
 		mergedChunks.push(currentChunk);
@@ -377,105 +440,65 @@ ${this.contextPrompt}`;
 		return mergedChunks;
 	}
 
-	private _applySizeConstraints(chunks: string[]): string[] {
+	private _applySizeConstraints(chunks: Chunk[], sentences: string[]): Chunk[] {
 		if (!this.minChunkSize && !this.maxChunkSize) return chunks;
 
-		const constrainedChunks: string[] = [];
-		let currentChunk = '';
-
+		const splitLarge: Chunk[] = [];
 		for (const chunk of chunks) {
-			const chunkLength = chunk.length;
-
-			if (this.maxChunkSize && chunkLength > this.maxChunkSize) {
-				// Split large chunks
-				const sentences = this._splitTextIntoSentences(chunk);
-				let tempChunk = '';
-
-				for (const sentence of sentences) {
-					if (tempChunk.length + sentence.length + 1 <= this.maxChunkSize) {
-						tempChunk = tempChunk ? tempChunk + ' ' + sentence : sentence;
+			if (this.maxChunkSize && chunk.text.length > this.maxChunkSize) {
+				let acc = '';
+				let start = chunk.startIdx;
+				for (let i = chunk.startIdx; i <= chunk.endIdx; i++) {
+					const sentence = sentences[i]!;
+					const nextLen = (acc ? acc.length + 1 : 0) + sentence.length;
+					if (nextLen <= this.maxChunkSize!) {
+						acc = acc ? acc + ' ' + sentence : sentence;
 					} else {
-						// Save current tempChunk if it meets minimum size
-						if (tempChunk && (!this.minChunkSize || tempChunk.length >= this.minChunkSize)) {
-							constrainedChunks.push(tempChunk);
-							tempChunk = sentence;
-						} else {
-							// tempChunk is too small, merge with currentChunk or start new sentence
-							if (currentChunk) {
-								currentChunk = currentChunk + ' ' + tempChunk + ' ' + sentence;
-							} else {
-								tempChunk = tempChunk ? tempChunk + ' ' + sentence : sentence;
-							}
-						}
+						if (acc) splitLarge.push({ text: acc, startIdx: start, endIdx: i - 1 });
+						acc = sentence;
+						start = i;
 					}
 				}
-
-				// Handle remaining tempChunk
-				if (tempChunk) {
-					if (!this.minChunkSize || tempChunk.length >= this.minChunkSize) {
-						constrainedChunks.push(tempChunk);
-					} else {
-						// tempChunk is too small, add to currentChunk
-						if (currentChunk) {
-							currentChunk = currentChunk + ' ' + tempChunk;
-						} else {
-							currentChunk = tempChunk;
-						}
-					}
-				}
-			} else if (this.minChunkSize && chunkLength < this.minChunkSize) {
-				// Merge small chunks
-				if (currentChunk) {
-					currentChunk = currentChunk + ' ' + chunk;
-				} else {
-					currentChunk = chunk;
-				}
-
-				if (currentChunk.length >= this.minChunkSize) {
-					constrainedChunks.push(currentChunk);
-					currentChunk = '';
-				}
+				if (acc) splitLarge.push({ text: acc, startIdx: start, endIdx: chunk.endIdx });
 			} else {
-				// Chunk is within acceptable size range
-				if (currentChunk) {
-					// Check if we should merge currentChunk with this chunk
-					if (!this.minChunkSize || currentChunk.length >= this.minChunkSize) {
-						constrainedChunks.push(currentChunk);
-						currentChunk = '';
-						constrainedChunks.push(chunk);
-					} else {
-						// currentChunk is too small, merge with this chunk
-						currentChunk = currentChunk + ' ' + chunk;
-						if (currentChunk.length >= this.minChunkSize) {
-							constrainedChunks.push(currentChunk);
-							currentChunk = '';
-						}
-					}
-				} else {
-					constrainedChunks.push(chunk);
-				}
+				splitLarge.push(chunk);
 			}
 		}
 
-		// Handle any remaining currentChunk
-		if (currentChunk) {
-			if (!this.minChunkSize || currentChunk.length >= this.minChunkSize) {
-				constrainedChunks.push(currentChunk);
+		if (!this.minChunkSize) return splitLarge;
+
+		const mergedSmall: Chunk[] = [];
+		let current: Chunk | null = null;
+		for (const chunk of splitLarge) {
+			if (!current) {
+				current = { ...chunk };
+				continue;
+			}
+			if (current.text.length < this.minChunkSize!) {
+				current = {
+					text: current.text + ' ' + chunk.text,
+					startIdx: current.startIdx,
+					endIdx: chunk.endIdx,
+				};
 			} else {
-				// currentChunk is too small, try to merge with last chunk if possible
-				if (constrainedChunks.length > 0) {
-					const lastChunk = constrainedChunks.pop()!;
-					const mergedChunk = lastChunk + ' ' + currentChunk;
-					constrainedChunks.push(mergedChunk);
-				} else {
-					// No chunks to merge with, but we have content - add it anyway to avoid losing data
-					// This is a rare edge case where all content is smaller than minChunkSize
-					constrainedChunks.push(currentChunk);
-				}
+				mergedSmall.push(current);
+				current = { ...chunk };
+			}
+		}
+		if (current) {
+			if (current.text.length < this.minChunkSize! && mergedSmall.length > 0) {
+				const last = mergedSmall.pop()!;
+				mergedSmall.push({
+					text: last.text + ' ' + current.text,
+					startIdx: last.startIdx,
+					endIdx: current.endIdx,
+				});
+			} else {
+				mergedSmall.push(current);
 			}
 		}
 
-		return constrainedChunks;
+		return mergedSmall;
 	}
 }
 
@@ -671,6 +694,11 @@ export class SemanticSplitterWithContext implements INodeType {
 			minChunkSize?: number;
 			maxChunkSize?: number;
 			sentenceSplitRegex?: string;
+			useGlobalSummary?: boolean;
+			globalSummaryPrompt?: string;
+			useNeighborhoodWindow?: boolean;
+			windowSentencesBefore?: number;
+			windowSentencesAfter?: number;
 		};
 
 		const splitter = new SemanticDoublePassMergingSplitterWithContext(embeddings, chatModel, {
@@ -684,6 +712,11 @@ export class SemanticSplitterWithContext implements INodeType {
 			sentenceSplitRegex: options.sentenceSplitRegex,
 			contextPrompt,
 			includeLabels,
+			useGlobalSummary: options.useGlobalSummary,
+			globalSummaryPrompt: options.globalSummaryPrompt,
+			useNeighborhoodWindow: options.useNeighborhoodWindow,
+			windowSentencesBefore: options.windowSentencesBefore,
+			windowSentencesAfter: options.windowSentencesAfter,
 		});
 
 		// Return the splitter instance wrapped with logging for visual feedback
