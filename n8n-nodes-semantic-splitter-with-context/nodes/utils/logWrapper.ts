@@ -1,4 +1,4 @@
-import { ISupplyDataFunctions, NodeOperationError } from 'n8n-workflow';
+import { ISupplyDataFunctions, NodeOperationError, NodeConnectionTypes } from 'n8n-workflow';
 import { TextSplitter } from '@langchain/textsplitters';
 
 async function callMethodAsync<T>(
@@ -48,15 +48,12 @@ export function logWrapper<T extends object>(originalInstance: T, executeFunctio
                 console.log('LogWrapper: Method accessed:', prop);
 			}
 
-			// Handle TextSplitter specifically
+			// Handle TextSplitter specifically - match n8n's built-in logWrapper exactly
 			if (originalInstance instanceof TextSplitter) {
 				if (prop === 'splitText' && 'splitText' in target) {
                     return async (text: string): Promise<string[]> => {
-                        if (enableLogging) {
-                            console.log('LogWrapper: splitText intercepted, text length:', text?.length || 0);
-                        }
-                        const connectionType = 'aiTextSplitter' as any;
-
+                        const connectionType = NodeConnectionTypes.AiTextSplitter;
+                        
 						// Log input data
 						const { index } = executeFunctions.addInputData(connectionType, [
 							[{ json: { textSplitter: text } }],
@@ -71,53 +68,12 @@ export function logWrapper<T extends object>(originalInstance: T, executeFunctio
 							arguments: [text],
 						})) as string[];
 
-                        if (enableLogging) {
-                            console.log('LogWrapper: splitText completed, chunks:', response?.length || 0);
-                        }
-
 						// Log AI event
 						logAiEvent(executeFunctions, 'ai-text-split');
 
 						// Log output data
 						executeFunctions.addOutputData(connectionType, index, [
 							[{ json: { response } }],
-						]);
-
-						return response;
-					};
-				}
-
-				if (prop === 'splitDocuments' && 'splitDocuments' in target) {
-                    return async (documents: any[]): Promise<any[]> => {
-                        if (enableLogging) {
-                            console.log('LogWrapper: splitDocuments intercepted, docs:', documents?.length || 0);
-                        }
-                        const connectionType = 'aiTextSplitter' as any;
-
-						// Log input data
-						const { index } = executeFunctions.addInputData(connectionType, [
-							[{ json: { documents: documents.length } }],
-						]);
-
-						// Call the original method with proper error handling
-						const response = (await callMethodAsync.call(target, {
-							executeFunctions,
-							connectionType,
-							currentNodeRunIndex: index,
-							method: target[prop as keyof typeof target] as (...args: any[]) => Promise<unknown>,
-							arguments: [documents],
-						})) as any[];
-
-                        if (enableLogging) {
-                            console.log('LogWrapper: splitDocuments completed, chunks:', response?.length || 0);
-                        }
-
-						// Log AI event
-						logAiEvent(executeFunctions, 'ai-text-split');
-
-						// Log output data
-						executeFunctions.addOutputData(connectionType, index, [
-							[{ json: { response: response.length } }],
 						]);
 
 						return response;
