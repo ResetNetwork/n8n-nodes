@@ -14,6 +14,7 @@ export class EmbeddingsGoogleGeminiExtended implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Embeddings Google Gemini Extended',
 		name: 'embeddingsGoogleGeminiExtended',
+		icon: 'file:noun-embedded-6256003.svg',
 		group: ['transform'],
 		version: 1,
 		description: 'Use Google Gemini Embeddings with extended features like output dimensions support',
