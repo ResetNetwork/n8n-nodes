@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-semantic-splitter-with-context",
-  "version": "0.5.2",
+  "version": "0.6.0",
   "description": "Semantic Splitter with Context for n8n with LangChain integration",
   "keywords": [
     "n8n-community-node-package",
