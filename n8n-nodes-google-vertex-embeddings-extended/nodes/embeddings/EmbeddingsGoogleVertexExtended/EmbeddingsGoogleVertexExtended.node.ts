@@ -62,7 +62,7 @@ export class EmbeddingsGoogleVertexExtended implements INodeType {
 				type: 'string',
 				description:
 					'The model to use for generating embeddings. <a href="https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/text-embeddings-api">Learn more</a>.',
-				default: 'text-embedding-004',
+				default: 'gemini-embedding-001',
 				placeholder: 'e.g. text-embedding-004, text-multilingual-embedding-002',
 			},
 			{
