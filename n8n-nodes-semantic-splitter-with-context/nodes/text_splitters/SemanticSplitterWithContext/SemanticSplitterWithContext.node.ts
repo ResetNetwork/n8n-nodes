@@ -5,6 +5,13 @@ import {
 	SupplyData,
 } from 'n8n-workflow';
 
+// Define connection types as constants to match runtime behavior
+const NodeConnectionType = {
+	AiLanguageModel: 'ai_languageModel',
+	AiEmbedding: 'ai_embedding', 
+	AiTextSplitter: 'ai_textSplitter',
+} as const;
+
 import { Document } from '@langchain/core/documents';
 import { Embeddings } from '@langchain/core/embeddings';
 import { BaseLanguageModel } from '@langchain/core/language_models/base';
@@ -496,22 +503,25 @@ export class SemanticSplitterWithContext implements INodeType {
 				],
 			},
 		},
-		inputs: [],
-		outputs: [
+		inputs: [
 			{
 				displayName: 'Chat Model',
 				maxConnections: 1,
-				type: 'aiLanguageModel' as any,
+				type: NodeConnectionType.AiLanguageModel,
+				required: true,
 			},
 			{
 				displayName: 'Embeddings',
 				maxConnections: 1,
-				type: 'aiEmbedding' as any,
+				type: NodeConnectionType.AiEmbedding,
+				required: true,
 			},
+		],
+		outputs: [
 			{
 				displayName: 'Text Splitter',
 				maxConnections: 1,
-				type: 'aiTextSplitter' as any,
+				type: NodeConnectionType.AiTextSplitter,
 			},
 		],
 		properties: [
@@ -640,12 +650,12 @@ export class SemanticSplitterWithContext implements INodeType {
 		console.log('ContextualSemanticSplitter: supplyData called!');
 		
 		const chatModel = (await this.getInputConnectionData(
-			'aiLanguageModel' as any,
+			NodeConnectionType.AiLanguageModel,
 			itemIndex,
 		)) as BaseLanguageModel;
 
 		const embeddings = (await this.getInputConnectionData(
-			'aiEmbedding' as any,
+			NodeConnectionType.AiEmbedding,
 			itemIndex,
 		)) as Embeddings;
 
