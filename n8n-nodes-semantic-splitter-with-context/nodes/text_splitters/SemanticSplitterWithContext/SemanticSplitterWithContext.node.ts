@@ -496,21 +496,18 @@ export class SemanticSplitterWithContext implements INodeType {
 				],
 			},
 		},
-		inputs: [
+		inputs: [],
+		outputs: [
 			{
 				displayName: 'Chat Model',
 				maxConnections: 1,
 				type: 'aiLanguageModel' as any,
-				required: true,
 			},
 			{
 				displayName: 'Embeddings',
 				maxConnections: 1,
 				type: 'aiEmbedding' as any,
-				required: true,
 			},
-		],
-		outputs: [
 			{
 				displayName: 'Text Splitter',
 				maxConnections: 1,
