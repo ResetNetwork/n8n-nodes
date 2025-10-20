@@ -133,6 +133,8 @@ export class EmbeddingsGoogleVertexExtended implements INodeType {
 
 
 	async supplyData(this: ISupplyDataFunctions, itemIndex: number): Promise<SupplyData> {
+		this.logger.debug('Supply data for embeddings Google Vertex Extended');
+		
 		const credentials = await this.getCredentials('googleApi');
 		const privateKey = (credentials.privateKey as string).replace(/\\n/g, '\n');
 		const email = (credentials.email as string).trim();
@@ -142,15 +144,17 @@ export class EmbeddingsGoogleVertexExtended implements INodeType {
 		const outputDimensions = this.getNodeParameter('outputDimensions', itemIndex, 0) as number;
 		const options = this.getNodeParameter('options', itemIndex, {}) as {
 			taskType?: string;
-			batchSize?: number;
 		};
 
-		// Create base embeddings instance using LangChain's VertexAIEmbeddings (like official node)
-		const baseEmbeddings = new VertexAIEmbeddings({
+		// Debug logging
+		this.logger.debug(`Model: ${modelName}, Output Dimensions: ${outputDimensions}, Project: ${projectId}`);
+
+		// Create embeddings instance using LangChain's VertexAIEmbeddings
+		const embeddings = new VertexAIEmbeddings({
 			authOptions: {
 				projectId,
 				credentials: {
-					client_email: credentials.email as string,
+					client_email: email,
 					private_key: privateKey,
 				},
 			},
@@ -160,65 +164,9 @@ export class EmbeddingsGoogleVertexExtended implements INodeType {
 			...(options.taskType && { taskType: options.taskType as any }),
 		});
 
-		// Create wrapper that handles configurable batch size
-		// LangChain assumes Vertex AI supports batch size 5, but it actually only supports 1
-		class BatchAwareVertexAIEmbeddings {
-			private baseEmbeddings: VertexAIEmbeddings;
-			private batchSize: number;
-
-			constructor(baseEmbeddings: VertexAIEmbeddings, batchSize: number) {
-				this.baseEmbeddings = baseEmbeddings;
-				this.batchSize = batchSize;
-			}
-
-			// Delegate embedQuery to base embeddings
-			async embedQuery(document: string): Promise<number[]> {
-				return this.baseEmbeddings.embedQuery(document);
-			}
-
-			async embedDocuments(documents: string[]): Promise<number[][]> {
-				// If batch size is 1, use individual embedQuery calls (current Vertex AI requirement)
-				if (this.batchSize === 1) {
-					const embeddings: number[][] = [];
-					for (const doc of documents) {
-						const embedding = await this.baseEmbeddings.embedQuery(doc);
-						embeddings.push(embedding);
-					}
-					return embeddings;
-				} else {
-					// For larger batch sizes, try the base implementation but with error handling
-					try {
-						return await this.baseEmbeddings.embedDocuments(documents);
-					} catch (error) {
-						// If batch fails, fall back to single document processing
-						console.warn('Batch processing failed, falling back to single document processing:', error);
-						const embeddings: number[][] = [];
-						for (const doc of documents) {
-							const embedding = await this.baseEmbeddings.embedQuery(doc);
-							embeddings.push(embedding);
-						}
-						return embeddings;
-					}
-				}
-			}
-
-			// Delegate other commonly used properties/methods
-			get modelName(): string {
-				return (this.baseEmbeddings as any).modelName || 'google-vertex-ai';
-			}
-		}
-
-		// Create embeddings instance with configurable batch size
-		const batchSize = options.batchSize || 32;
-		const embeddings = new BatchAwareVertexAIEmbeddings(baseEmbeddings, batchSize);
-
 		// Return the embeddings instance wrapped with logging for visual feedback
-		console.log('GoogleVertexEmbeddings: About to wrap embeddings with logWrapper');
-		const wrappedEmbeddings = logWrapper(embeddings, this);
-		console.log('GoogleVertexEmbeddings: Wrapped embeddings created');
-		
 		return {
-			response: wrappedEmbeddings,
+			response: logWrapper(embeddings, this),
 		};
 	}
 } 
