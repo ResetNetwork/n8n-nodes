@@ -44,15 +44,13 @@ class CustomGoogleGenerativeAIEmbeddings {
 			
 			const requestConfig: any = {
 				model: this.model,
-				contents: text,
+				content: text,  // Singular 'content' as per official API
 			};
 
 			// Add custom parameters using the official API format
 			if (this.outputDimensionality && this.outputDimensionality > 0) {
-				// Try both parameter names to see which one works
 				requestConfig.outputDimensionality = this.outputDimensionality;
-				requestConfig.output_dimensionality = this.outputDimensionality;
-				console.log('CustomGoogleGenerativeAI: Setting both outputDimensionality and output_dimensionality to', this.outputDimensionality);
+				console.log('CustomGoogleGenerativeAI: Setting outputDimensionality to', this.outputDimensionality);
 			}
 			if (this.taskType) {
 				requestConfig.taskType = this.taskType;
@@ -65,13 +63,18 @@ class CustomGoogleGenerativeAIEmbeddings {
 
 			try {
 				const response = await this.client.models.embedContent(requestConfig);
-				const embedding = response.embeddings?.[0]?.values || response.embedding?.values;
+				console.log('CustomGoogleGenerativeAI: Full API response:', JSON.stringify(response, null, 2));
+				
+				// Use singular 'embedding' as per official API format
+				const embedding = response.embedding?.values;
 				
 				if (!embedding || !Array.isArray(embedding)) {
+					console.error('CustomGoogleGenerativeAI: Invalid response structure:', response);
 					throw new Error('Invalid embedding response from Google Gemini API');
 				}
 				
 				console.log('CustomGoogleGenerativeAI: Received embedding with', embedding.length, 'dimensions');
+				console.log('CustomGoogleGenerativeAI: Expected dimensions:', this.outputDimensionality || 'default');
 				results.push(embedding.map(Number));
 			} catch (error) {
 				console.error('CustomGoogleGenerativeAI: Error embedding document:', error);
