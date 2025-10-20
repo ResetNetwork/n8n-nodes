@@ -212,6 +212,14 @@ class SemanticDoublePassMergingSplitterWithContext extends TextSplitter {
 				fullPrompt = `<document>\n${wholeDocument}\n</document>\n<chunk>\n${chunk}\n</chunk>\n${this.contextPrompt}`;
 			}
 
+			// Validate payload size to prevent PayloadTooLargeError
+			const MAX_PROMPT_SIZE = 100_000; // 100KB prompt limit
+			if (fullPrompt.length > MAX_PROMPT_SIZE) {
+				throw new Error(
+					`Prompt too large for API call (${fullPrompt.length} characters). Enable Global Summary or Neighborhood Window to reduce prompt size.`,
+				);
+			}
+
 			// Generate context using the chat model
 			const response = await this.chatModel.invoke(fullPrompt);
 			let context: string = '';
@@ -503,6 +511,9 @@ class SemanticDoublePassMergingSplitterWithContext extends TextSplitter {
 }
 
 export class SemanticSplitterWithContext implements INodeType {
+	// Static cache to prevent memory leaks from repeated instance creation
+	private static splitterCache = new Map<string, SemanticDoublePassMergingSplitterWithContext>();
+	
 	description: INodeTypeDescription = {
 		displayName: 'Semantic Splitter with Context',
 		name: 'contextualSemanticTextSplitterWithContext',
@@ -754,7 +765,8 @@ export class SemanticSplitterWithContext implements INodeType {
 			windowSentencesAfter?: number;
 		};
 
-		const splitter = new SemanticDoublePassMergingSplitterWithContext(embeddings, chatModel, {
+		// Create cache key based on configuration to prevent memory leaks
+		const cacheKey = JSON.stringify({
 			bufferSize: options.bufferSize,
 			breakpointThresholdType: options.breakpointThresholdType,
 			breakpointThresholdAmount: options.breakpointThresholdAmount,
@@ -771,6 +783,38 @@ export class SemanticSplitterWithContext implements INodeType {
 			windowSentencesBefore: options.windowSentencesBefore,
 			windowSentencesAfter: options.windowSentencesAfter,
 		});
+
+		// Use cached instance if available to prevent memory leaks on retries
+		let splitter = SemanticSplitterWithContext.splitterCache.get(cacheKey);
+		if (!splitter) {
+			splitter = new SemanticDoublePassMergingSplitterWithContext(embeddings, chatModel, {
+				bufferSize: options.bufferSize,
+				breakpointThresholdType: options.breakpointThresholdType,
+				breakpointThresholdAmount: options.breakpointThresholdAmount,
+				numberOfChunks: options.numberOfChunks,
+				secondPassThreshold: options.secondPassThreshold,
+				minChunkSize: options.minChunkSize,
+				maxChunkSize: options.maxChunkSize,
+				sentenceSplitRegex: options.sentenceSplitRegex,
+				contextPrompt,
+				includeLabels,
+				useGlobalSummary: options.useGlobalSummary,
+				globalSummaryPrompt: options.globalSummaryPrompt,
+				useNeighborhoodWindow: options.useNeighborhoodWindow,
+				windowSentencesBefore: options.windowSentencesBefore,
+				windowSentencesAfter: options.windowSentencesAfter,
+			});
+			
+			// Cache the instance but limit cache size to prevent unbounded growth
+			if (SemanticSplitterWithContext.splitterCache.size >= 10) {
+				// Clear oldest entry when cache is full
+				const firstKey = SemanticSplitterWithContext.splitterCache.keys().next().value;
+				if (firstKey) {
+					SemanticSplitterWithContext.splitterCache.delete(firstKey);
+				}
+			}
+			SemanticSplitterWithContext.splitterCache.set(cacheKey, splitter);
+		}
 
 		// Return the splitter instance wrapped with logging for visual feedback
 		console.log('ContextualSemanticSplitter: About to wrap splitter with logWrapper');
