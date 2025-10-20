@@ -179,11 +179,14 @@ class SemanticDoublePassMergingSplitterWithContext extends TextSplitter {
 				return this._formatContextualOutput('', chunk);
 			}
 
+			console.log('SemanticSplitter: _generateContextualContent called with useGlobalSummary:', this.useGlobalSummary, 'documentLength:', wholeDocument.length);
+			
 			let context: string = '';
 			const documentHash = this._hashDocument(wholeDocument);
 
 			// Only use Global Summary for documents large enough to benefit from it
 			if (this.useGlobalSummary && wholeDocument.length > 1000) {
+				console.log('SemanticSplitter: Taking Global Summary path');
 				// Generate document summary once and cache it
 				let globalSummary = this.documentSummaryCache.get(documentHash);
 				
@@ -220,9 +223,29 @@ class SemanticDoublePassMergingSplitterWithContext extends TextSplitter {
 					}
 				}
 				
-				// Use global summary as context (no additional API call)
-				context = globalSummary || 'Unable to generate document summary';
+				// Generate chunk-specific context using global summary instead of full document
+				const contextPrompt = `<document_summary>\n${globalSummary}\n</document_summary>\nHere is the chunk we want to situate within the document context\n<chunk>\n${chunk}\n</chunk>\n${this.contextPrompt}`;
+				
+				// Validate prompt size
+				if (contextPrompt.length > 100_000) {
+					throw new Error(`Context prompt too large (${contextPrompt.length} characters).`);
+				}
+				
+				const response = await this.chatModel.invoke(contextPrompt);
+				if (typeof response === 'string') {
+					context = response;
+				} else if (response && typeof (response as any).content === 'string') {
+					context = (response as any).content as string;
+				} else if (response && Array.isArray((response as any).content)) {
+					const blocks = (response as any).content as Array<any>;
+					context = blocks
+						.map((b) => (typeof b?.text === 'string' ? b.text : typeof b === 'string' ? b : ''))
+						.filter(Boolean)
+						.join('\n');
+				}
+				console.log('SemanticSplitter: Generated chunk context using global summary, context length:', context.length);
 			} else {
+				console.log('SemanticSplitter: Taking per-chunk context path');
 				// Generate specific context for this chunk using full document
 				const fullPrompt = `<document>\n${wholeDocument}\n</document>\nHere is the chunk we want to situate within the whole document\n<chunk>\n${chunk}\n</chunk>\n${this.contextPrompt}`;
 
@@ -248,7 +271,12 @@ class SemanticDoublePassMergingSplitterWithContext extends TextSplitter {
 			}
 			
 			// Combine context and chunk with selected format
-			return this._formatContextualOutput(context, chunk);
+			console.log('SemanticSplitter: About to format - context length:', context.length, 'chunk length:', chunk.length);
+			console.log('SemanticSplitter: Context preview:', context.substring(0, 100) + '...');
+			console.log('SemanticSplitter: Chunk preview:', chunk.substring(0, 100) + '...');
+			const result = this._formatContextualOutput(context, chunk);
+			console.log('SemanticSplitter: Final formatted result preview:', result.substring(0, 200) + '...');
+			return result;
 		} catch (error) {
 			console.error('Error generating contextual content:', error);
 			// Fallback to just the chunk if context generation fails
