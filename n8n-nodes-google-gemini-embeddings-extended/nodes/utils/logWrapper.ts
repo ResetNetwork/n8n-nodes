@@ -63,7 +63,10 @@ export function logWrapper<T extends object>(originalInstance: T, executeFunctio
 							arguments: [documents],
 						})) as number[][];
 
-						console.log('EmbeddingsLogWrapper: embedDocuments completed, embeddings:', response?.length || 0);
+						console.log('EmbeddingsLogWrapper: embedDocuments completed, embeddings count:', response?.length || 0);
+						if (response && response.length > 0) {
+							console.log('EmbeddingsLogWrapper: First embedding dimensions:', response[0]?.length || 0);
+						}
 
 						// Log AI event
 						logAiEvent(executeFunctions, 'ai-document-embedded');
@@ -96,7 +99,7 @@ export function logWrapper<T extends object>(originalInstance: T, executeFunctio
 							arguments: [query],
 						})) as number[];
 
-						console.log('EmbeddingsLogWrapper: embedQuery completed, embedding dimension:', response?.length || 0);
+						console.log('EmbeddingsLogWrapper: embedQuery completed, embedding dimensions:', response?.length || 0);
 
 						// Log AI event
 						logAiEvent(executeFunctions, 'ai-query-embedded');

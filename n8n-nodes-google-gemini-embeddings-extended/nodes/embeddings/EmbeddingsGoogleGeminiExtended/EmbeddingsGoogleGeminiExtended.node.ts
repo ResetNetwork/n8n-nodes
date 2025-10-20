@@ -215,9 +215,11 @@ export class EmbeddingsGoogleGeminiExtended implements INodeType {
 
 		// Debug logging
 		this.logger.debug(`Model: ${modelName}, Output Dimensions: ${outputDimensions}`);
+		console.log('GEMINI DEBUG - Model:', modelName, 'Output Dimensions:', outputDimensions, 'Type:', typeof outputDimensions);
+		console.log('GEMINI DEBUG - Will set outputDimensionality:', outputDimensions > 0 ? outputDimensions : 'NO (using default)');
 
-		// Create embeddings instance using LangChain's GoogleGenerativeAIEmbeddings
-		const embeddings = new GoogleGenerativeAIEmbeddings({
+		// Create embeddings configuration
+		const embeddingsConfig = {
 			apiKey: credentials.apiKey as string,
 			...(credentials.host && { baseUrl: credentials.host as string }),
 			model: modelName,
@@ -227,7 +229,12 @@ export class EmbeddingsGoogleGeminiExtended implements INodeType {
 			stripNewLines: options.stripNewLines !== false,
 			maxConcurrency: 1,
 			maxRetries: 3,
-		});
+		};
+		
+		console.log('GEMINI DEBUG - Final config:', JSON.stringify(embeddingsConfig, null, 2));
+
+		// Create embeddings instance using LangChain's GoogleGenerativeAIEmbeddings
+		const embeddings = new GoogleGenerativeAIEmbeddings(embeddingsConfig);
 
 		// Return the embeddings instance wrapped with logging for visual feedback
 		return {
