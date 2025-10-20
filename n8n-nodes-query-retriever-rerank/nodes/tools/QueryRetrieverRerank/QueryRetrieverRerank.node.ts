@@ -1,11 +1,12 @@
-import * as workflow from 'n8n-workflow';
 import {
-    ISupplyDataFunctions,
-    INodeType,
-    INodeTypeDescription,
-    SupplyData,
+	ISupplyDataFunctions,
+	INodeType,
+	INodeTypeDescription,
+	SupplyData,
+	NodeConnectionType,
 } from 'n8n-workflow';
 
+import { DynamicTool } from '@langchain/core/tools';
 import type { BaseLanguageModel } from '@langchain/core/language_models/base';
 import type { VectorStore } from '@langchain/core/vectorstores';
 import type { Embeddings } from '@langchain/core/embeddings';
@@ -42,34 +43,34 @@ export class QueryRetrieverRerank implements INodeType {
 			},
 		},
 		// eslint-disable-next-line n8n-nodes-base/node-class-description-inputs-wrong-regular-node
-        inputs: [
+		inputs: [
 			{
 				displayName: 'Vector',
 				maxConnections: 1,
-                type: (workflow as any).NodeConnectionType.AiVectorStore,
+				type: 'aiVectorStore' as any,
 			},
 			{
 				displayName: 'LLM',
 				maxConnections: 1,
-                type: (workflow as any).NodeConnectionType.AiLanguageModel,
+				type: 'aiLanguageModel' as any,
 			},
 			{
 				displayName: 'Embed',
 				maxConnections: 1,
-                type: (workflow as any).NodeConnectionType.AiEmbedding,
+				type: 'aiEmbedding' as any,
 				required: true,
 			},
 			{
 				displayName: 'Debug',
 				maxConnections: 1,
-                type: (workflow as any).NodeConnectionType.AiMemory,
+				type: 'aiMemory' as any,
 				required: false,
 			},
 		],
-        outputs: [(workflow as any).NodeConnectionType.AiTool],
-        outputNames: ['Tool'],
+		outputs: ['aiTool' as any],
+		outputNames: ['Tool'],
 		properties: [
-            getConnectionHintNoticeField(['aiAgent']),
+			getConnectionHintNoticeField(['aiAgent']),
 			{
 				displayName: 'Tool Options',
 				name: 'toolOptions',
@@ -295,10 +296,10 @@ export class QueryRetrieverRerank implements INodeType {
 		};
 
 		// Get the vector store and language model from input connections
-        const vectorStore = (await this.getInputConnectionData('aiVectorStore' as any, itemIndex)) as VectorStore;
-        const model = (await this.getInputConnectionData('aiLanguageModel' as any, 0)) as BaseLanguageModel;
-        const rerankingEmbeddings = (await this.getInputConnectionData('aiEmbedding' as any, 0)) as Embeddings;
-        const memory = (await this.getInputConnectionData('aiMemory' as any, 0)) as BaseMemory | null;
+		const vectorStore = (await this.getInputConnectionData('aiVectorStore' as any, itemIndex)) as VectorStore;
+		const model = (await this.getInputConnectionData('aiLanguageModel' as any, 0)) as BaseLanguageModel;
+		const rerankingEmbeddings = (await this.getInputConnectionData('aiEmbedding' as any, 0)) as Embeddings;
+		const memory = (await this.getInputConnectionData('aiMemory' as any, 0)) as BaseMemory | null;
 
 		if (!vectorStore) {
 			throw new Error('Vector Store input is required');
@@ -344,9 +345,7 @@ export class QueryRetrieverRerank implements INodeType {
 		}. Supports AI-controlled retrieval parameters.`;
 
 		// Create the DynamicTool
-        // Lazy-load DynamicTool at runtime to avoid class-load failures if module resolution is isolated
-        const { DynamicTool } = await import('@langchain/core/tools');
-        const tool = new DynamicTool({
+		const tool = new DynamicTool({
 			name,
 			description: enhancedDescription,
 			func: async (input: string) => {
