@@ -49,8 +49,10 @@ class CustomGoogleGenerativeAIEmbeddings {
 
 			// Add custom parameters using the official API format
 			if (this.outputDimensionality && this.outputDimensionality > 0) {
+				// Try both parameter names to see which one works
 				requestConfig.outputDimensionality = this.outputDimensionality;
-				console.log('CustomGoogleGenerativeAI: Setting outputDimensionality to', this.outputDimensionality);
+				requestConfig.output_dimensionality = this.outputDimensionality;
+				console.log('CustomGoogleGenerativeAI: Setting both outputDimensionality and output_dimensionality to', this.outputDimensionality);
 			}
 			if (this.taskType) {
 				requestConfig.taskType = this.taskType;

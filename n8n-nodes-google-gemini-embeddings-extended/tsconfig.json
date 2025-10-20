@@ -4,7 +4,6 @@
     "target": "es2020",
     "module": "commonjs",
     "moduleResolution": "node",
-    "moduleResolution": "node",
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
