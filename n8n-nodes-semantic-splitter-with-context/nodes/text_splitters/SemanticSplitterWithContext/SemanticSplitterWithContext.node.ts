@@ -40,7 +40,11 @@ class SemanticDoublePassMergingSplitterWithContext extends TextSplitter {
 	private includeLabels: boolean;
 	private useGlobalSummary: boolean;
 	private globalSummaryPrompt: string;
+	private useNeighborhoodWindow: boolean;
+	private windowSentencesBefore: number;
+	private windowSentencesAfter: number;
 	private documentSummaryCache: Map<string, string> = new Map();
+	private documentSentencesCache: Map<string, string[]> = new Map();
 
 	constructor(
 		embeddings: Embeddings,
@@ -58,6 +62,9 @@ class SemanticDoublePassMergingSplitterWithContext extends TextSplitter {
 			includeLabels?: boolean;
 			useGlobalSummary?: boolean;
 			globalSummaryPrompt?: string;
+			useNeighborhoodWindow?: boolean;
+			windowSentencesBefore?: number;
+			windowSentencesAfter?: number;
 		} = {},
 	) {
 		super();
@@ -80,6 +87,9 @@ class SemanticDoublePassMergingSplitterWithContext extends TextSplitter {
 		this.includeLabels = options.includeLabels ?? false;
 		this.useGlobalSummary = options.useGlobalSummary ?? false;
 		this.globalSummaryPrompt = options.globalSummaryPrompt ?? `Summarize the following document in 5-7 sentences, focusing on the main topics and concepts that would help retrieve relevant chunks.`;
+		this.useNeighborhoodWindow = options.useNeighborhoodWindow ?? false;
+		this.windowSentencesBefore = options.windowSentencesBefore ?? 2;
+		this.windowSentencesAfter = options.windowSentencesAfter ?? 2;
 	}
 
 	async splitText(text: string): Promise<string[]> {
@@ -164,10 +174,21 @@ class SemanticDoublePassMergingSplitterWithContext extends TextSplitter {
 	private async _generateContextualContent(wholeDocument: string, chunk: string): Promise<string> {
 		try {
 			let context: string = '';
+			const documentHash = this._hashDocument(wholeDocument);
+
+			// Cache document sentences for neighborhood window feature
+			if (this.useNeighborhoodWindow && !this.documentSentencesCache.has(documentHash)) {
+				const sentences = this._splitTextIntoSentences(wholeDocument);
+				if (this.documentSentencesCache.size >= 5) {
+					// Clear oldest entry
+					const firstKey = this.documentSentencesCache.keys().next().value;
+					if (firstKey) this.documentSentencesCache.delete(firstKey);
+				}
+				this.documentSentencesCache.set(documentHash, sentences);
+			}
 
 			if (this.useGlobalSummary) {
 				// Generate document summary once and cache it
-				const documentHash = this._hashDocument(wholeDocument);
 				let globalSummary = this.documentSummaryCache.get(documentHash);
 				
 				if (!globalSummary) {
@@ -207,7 +228,33 @@ class SemanticDoublePassMergingSplitterWithContext extends TextSplitter {
 				context = globalSummary || 'Unable to generate document summary';
 			} else {
 				// Generate specific context for this chunk
-				const fullPrompt = `<document>\n${wholeDocument}\n</document>\nHere is the chunk we want to situate within the whole document\n<chunk>\n${chunk}\n</chunk>\n${this.contextPrompt}`;
+				let fullPrompt: string;
+				
+				if (this.useNeighborhoodWindow) {
+					// Build neighborhood context
+					const sentences = this.documentSentencesCache.get(documentHash);
+					let neighborhood = '';
+					
+					if (sentences) {
+						// Find the chunk's position in the sentences
+						const chunkStart = this._findChunkPosition(chunk, sentences);
+						if (chunkStart >= 0) {
+							const windowStart = Math.max(0, chunkStart - this.windowSentencesBefore);
+							const windowEnd = Math.min(sentences.length - 1, chunkStart + this.windowSentencesAfter);
+							neighborhood = sentences.slice(windowStart, windowEnd + 1).join(' ');
+						}
+					}
+					
+					if (neighborhood) {
+						fullPrompt = `<neighborhood>\n${neighborhood}\n</neighborhood>\nHere is the chunk we want to situate within the neighborhood context\n<chunk>\n${chunk}\n</chunk>\n${this.contextPrompt}`;
+					} else {
+						// Fallback to document context if neighborhood not found
+						fullPrompt = `<document>\n${wholeDocument}\n</document>\nHere is the chunk we want to situate within the whole document\n<chunk>\n${chunk}\n</chunk>\n${this.contextPrompt}`;
+					}
+				} else {
+					// Use full document context
+					fullPrompt = `<document>\n${wholeDocument}\n</document>\nHere is the chunk we want to situate within the whole document\n<chunk>\n${chunk}\n</chunk>\n${this.contextPrompt}`;
+				}
 
 				// Validate payload size to prevent PayloadTooLargeError
 				if (fullPrompt.length > 100_000) {
@@ -248,6 +295,30 @@ class SemanticDoublePassMergingSplitterWithContext extends TextSplitter {
 			hash = hash & hash; // Convert to 32-bit integer
 		}
 		return hash.toString();
+	}
+
+	private _findChunkPosition(chunk: string, sentences: string[]): number {
+		// Find the approximate sentence position of this chunk
+		const chunkWords = chunk.toLowerCase().split(/\s+/).slice(0, 5); // Use first 5 words for matching
+		
+		for (let i = 0; i < sentences.length; i++) {
+			const sentenceWords = sentences[i]!.toLowerCase().split(/\s+/);
+			
+			// Check if the chunk's first words appear in this sentence
+			let matchCount = 0;
+			for (const chunkWord of chunkWords) {
+				if (sentenceWords.some(sw => sw.includes(chunkWord) || chunkWord.includes(sw))) {
+					matchCount++;
+				}
+			}
+			
+			// If most words match, this is likely the starting sentence
+			if (matchCount >= Math.min(3, chunkWords.length)) {
+				return i;
+			}
+		}
+		
+		return -1; // Not found
 	}
 
 	private _formatContextualOutput(context: string, chunk: string): string {
@@ -702,6 +773,37 @@ export class SemanticSplitterWithContext implements INodeType {
 							},
 						},
 					},
+					{
+						displayName: 'Use Neighborhood Window',
+						name: 'useNeighborhoodWindow',
+						type: 'boolean',
+						default: false,
+						description: 'Include nearby sentences around each chunk for local context (alternative to Global Summary)',
+					},
+					{
+						displayName: 'Window Sentences Before',
+						name: 'windowSentencesBefore',
+						type: 'number',
+						default: 2,
+						description: 'Number of sentences to include before the chunk',
+						displayOptions: {
+							show: {
+								'/useNeighborhoodWindow': [true],
+							},
+						},
+					},
+					{
+						displayName: 'Window Sentences After',
+						name: 'windowSentencesAfter',
+						type: 'number',
+						default: 2,
+						description: 'Number of sentences to include after the chunk',
+						displayOptions: {
+							show: {
+								'/useNeighborhoodWindow': [true],
+							},
+						},
+					},
 				],
 			},
 		],
@@ -734,6 +836,9 @@ export class SemanticSplitterWithContext implements INodeType {
 			sentenceSplitRegex?: string;
 			useGlobalSummary?: boolean;
 			globalSummaryPrompt?: string;
+			useNeighborhoodWindow?: boolean;
+			windowSentencesBefore?: number;
+			windowSentencesAfter?: number;
 		};
 
 		// Create cache key based on configuration to prevent memory leaks
@@ -750,6 +855,9 @@ export class SemanticSplitterWithContext implements INodeType {
 			includeLabels,
 			useGlobalSummary: options.useGlobalSummary,
 			globalSummaryPrompt: options.globalSummaryPrompt,
+			useNeighborhoodWindow: options.useNeighborhoodWindow,
+			windowSentencesBefore: options.windowSentencesBefore,
+			windowSentencesAfter: options.windowSentencesAfter,
 		});
 
 		// Use cached instance if available to prevent memory leaks on retries
@@ -768,6 +876,9 @@ export class SemanticSplitterWithContext implements INodeType {
 				includeLabels,
 				useGlobalSummary: options.useGlobalSummary,
 				globalSummaryPrompt: options.globalSummaryPrompt,
+				useNeighborhoodWindow: options.useNeighborhoodWindow,
+				windowSentencesBefore: options.windowSentencesBefore,
+				windowSentencesAfter: options.windowSentencesAfter,
 			});
 			
 			// Cache the instance but limit cache size to prevent unbounded growth
