@@ -5,9 +5,106 @@ import {
 	type SupplyData,
 } from 'n8n-workflow';
 
-import { GoogleGenerativeAIEmbeddings } from '@langchain/google-genai';
+import { Embeddings } from '@langchain/core/embeddings';
 import { logWrapper } from '../../utils/logWrapper';
 import { getConnectionHintNoticeField } from '../../utils/sharedFields';
+
+// Custom GoogleGenerativeAIEmbeddings that properly supports outputDimensionality
+class CustomGoogleGenerativeAIEmbeddings extends Embeddings {
+	private apiKey: string;
+	private baseUrl?: string;
+	private model: string;
+	private outputDimensionality?: number;
+	private taskType?: string;
+	private title?: string;
+	private stripNewLines: boolean;
+
+	constructor(config: {
+		apiKey: string;
+		baseUrl?: string;
+		model: string;
+		outputDimensionality?: number;
+		taskType?: string;
+		title?: string;
+		stripNewLines?: boolean;
+	}) {
+		super({});
+		this.apiKey = config.apiKey;
+		this.baseUrl = config.baseUrl;
+		this.model = config.model;
+		this.outputDimensionality = config.outputDimensionality;
+		this.taskType = config.taskType;
+		this.title = config.title;
+		this.stripNewLines = config.stripNewLines !== false;
+	}
+
+	private async makeApiCall(payload: any): Promise<any> {
+		const url = `${this.baseUrl || 'https://generativelanguage.googleapis.com'}/v1beta/models/${this.model}:embedContent?key=${this.apiKey}`;
+		
+		const response = await fetch(url, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+			},
+			body: JSON.stringify(payload),
+		});
+
+		if (!response.ok) {
+			throw new Error(`Google Gemini API error: ${response.status} ${response.statusText}`);
+		}
+
+		return response.json();
+	}
+
+	async embedDocuments(documents: string[]): Promise<number[][]> {
+		console.log('CustomGoogleGenerativeAI: embedDocuments called with', documents.length, 'documents');
+		const results: number[][] = [];
+
+		for (const document of documents) {
+			const text = this.stripNewLines ? document.replace(/\n/g, ' ') : document;
+			const payload: any = {
+				model: this.model,
+				content: { parts: [{ text }] },
+			};
+
+			// Add custom parameters that LangChain doesn't support
+			if (this.outputDimensionality && this.outputDimensionality > 0) {
+				payload.outputDimensionality = this.outputDimensionality;
+				console.log('CustomGoogleGenerativeAI: Setting outputDimensionality to', this.outputDimensionality);
+			}
+			if (this.taskType) {
+				payload.taskType = this.taskType;
+			}
+			if (this.title && this.taskType === 'RETRIEVAL_DOCUMENT') {
+				payload.title = this.title;
+			}
+
+			console.log('CustomGoogleGenerativeAI: API payload:', JSON.stringify(payload, null, 2));
+
+			try {
+				const response = await this.makeApiCall(payload);
+				const embedding = response.embedding?.values;
+				
+				if (!embedding || !Array.isArray(embedding)) {
+					throw new Error('Invalid embedding response from Google Gemini API');
+				}
+				
+				console.log('CustomGoogleGenerativeAI: Received embedding with', embedding.length, 'dimensions');
+				results.push(embedding.map(Number));
+			} catch (error) {
+				console.error('CustomGoogleGenerativeAI: Error embedding document:', error);
+				throw error;
+			}
+		}
+
+		return results;
+	}
+
+	async embedQuery(query: string): Promise<number[]> {
+		const results = await this.embedDocuments([query]);
+		return results[0] || [];
+	}
+}
 
 export class EmbeddingsGoogleGeminiExtended implements INodeType {
 	description: INodeTypeDescription = {
@@ -233,8 +330,8 @@ export class EmbeddingsGoogleGeminiExtended implements INodeType {
 		
 		console.log('GEMINI DEBUG - Final config:', JSON.stringify(embeddingsConfig, null, 2));
 
-		// Create embeddings instance using LangChain's GoogleGenerativeAIEmbeddings
-		const embeddings = new GoogleGenerativeAIEmbeddings(embeddingsConfig);
+		// Use custom implementation that properly supports outputDimensionality
+		const embeddings = new CustomGoogleGenerativeAIEmbeddings(embeddingsConfig);
 
 		// Return the embeddings instance wrapped with logging for visual feedback
 		return {
