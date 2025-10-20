@@ -44,7 +44,7 @@ class CustomGoogleGenerativeAIEmbeddings {
 			
 			const requestConfig: any = {
 				model: this.model,
-				content: text,  // Singular 'content' as per official API
+				content: { parts: [{ text }] },  // Proper content format as per REST API
 			};
 
 			// Add custom parameters using the official API format
