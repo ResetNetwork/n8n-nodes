@@ -90,9 +90,14 @@ class SemanticDoublePassMergingSplitterWithContext extends TextSplitter {
 			);
 		}
 
-		console.log('SemanticSplitter: splitText called with text length:', text.length);
+		const debugEnabled = process.env.N8N_NODES_DEBUG === '1' || process.env.N8N_NODES_DEBUG === 'true';
+		if (debugEnabled) {
+			console.log('SemanticSplitter: splitText called with text length:', text.length);
+		}
 		const { chunks } = await this._splitTextWithChunks(text);
-		console.log('SemanticSplitter: splitText returning', chunks.length, 'chunks');
+		if (debugEnabled) {
+			console.log('SemanticSplitter: splitText returning', chunks.length, 'chunks');
+		}
 		return chunks.map((c) => c.text);
 	}
 
@@ -136,17 +141,26 @@ class SemanticDoublePassMergingSplitterWithContext extends TextSplitter {
 	}
 
 	override async splitDocuments(documents: Document[]): Promise<Document[]> {
-		console.log('SemanticSplitter: splitDocuments called with', documents.length, 'documents');
+		const debugEnabled = process.env.N8N_NODES_DEBUG === '1' || process.env.N8N_NODES_DEBUG === 'true';
+		if (debugEnabled) {
+			console.log('SemanticSplitter: splitDocuments called with', documents.length, 'documents');
+		}
 		const splitDocuments: Document[] = [];
 
 		for (const document of documents) {
-			console.log('SemanticSplitter: Processing document with content length:', document.pageContent.length);
+			if (debugEnabled) {
+				console.log('SemanticSplitter: Processing document with content length:', document.pageContent.length);
+			}
 			const chunks = await this.splitText(document.pageContent);
-			console.log('SemanticSplitter: Got', chunks.length, 'chunks from splitText');
+			if (debugEnabled) {
+				console.log('SemanticSplitter: Got', chunks.length, 'chunks from splitText');
+			}
 			
 			for (let i = 0; i < chunks.length; i++) {
 				const chunk = chunks[i]!;
-				console.log(`SemanticSplitter: Processing chunk ${i + 1}/${chunks.length}, length:`, chunk.length);
+				if (debugEnabled) {
+					console.log(`SemanticSplitter: Processing chunk ${i + 1}/${chunks.length}, length:`, chunk.length);
+				}
 				
 				// Generate contextual description for this chunk
 				const contextualContent = await this._generateContextualContent(
@@ -154,7 +168,9 @@ class SemanticDoublePassMergingSplitterWithContext extends TextSplitter {
 					chunk
 				);
 				
-				console.log(`SemanticSplitter: Generated contextual content for chunk ${i + 1}, final length:`, contextualContent.length);
+				if (debugEnabled) {
+					console.log(`SemanticSplitter: Generated contextual content for chunk ${i + 1}, final length:`, contextualContent.length);
+				}
 				
 				splitDocuments.push(
 					new Document({
@@ -165,7 +181,9 @@ class SemanticDoublePassMergingSplitterWithContext extends TextSplitter {
 			}
 		}
 
-		console.log('SemanticSplitter: splitDocuments returning', splitDocuments.length, 'documents');
+		if (debugEnabled) {
+			console.log('SemanticSplitter: splitDocuments returning', splitDocuments.length, 'documents');
+		}
 		return splitDocuments;
 	}
 
@@ -324,7 +342,10 @@ class SemanticDoublePassMergingSplitterWithContext extends TextSplitter {
 			const sortedDistances = [...distances].sort((a, b) => b - a);
 			const index = Math.min(this.numberOfChunks - 1, sortedDistances.length - 1);
 			threshold = sortedDistances[index]!;
-			console.log(`SemanticSplitter: numberOfChunks=${this.numberOfChunks}, distances.length=${distances.length}, sortedDistances=${sortedDistances.slice(0,5)}, using threshold=${threshold}`);
+			const debugEnabled = process.env.N8N_NODES_DEBUG === '1' || process.env.N8N_NODES_DEBUG === 'true';
+			if (debugEnabled) {
+				console.log(`SemanticSplitter: numberOfChunks=${this.numberOfChunks}, distances.length=${distances.length}, sortedDistances=${sortedDistances.slice(0,5)}, using threshold=${threshold}`);
+			}
 		} else if (this.breakpointThresholdAmount !== undefined) {
 			threshold = this.breakpointThresholdAmount;
 		} else {
@@ -387,7 +408,10 @@ class SemanticDoublePassMergingSplitterWithContext extends TextSplitter {
 			}
 		}
 		
-		console.log(`SemanticSplitter: Found ${breakpoints.length} breakpoints:`, breakpoints);
+		const debugEnabled = process.env.N8N_NODES_DEBUG === '1' || process.env.N8N_NODES_DEBUG === 'true';
+		if (debugEnabled) {
+			console.log(`SemanticSplitter: Found ${breakpoints.length} breakpoints:`, breakpoints);
+		}
 		return breakpoints;
 	}
 
@@ -705,7 +729,10 @@ export class SemanticSplitterWithContext implements INodeType {
 	};
 
 	async supplyData(this: ISupplyDataFunctions, itemIndex: number): Promise<SupplyData> {
-		console.log('ContextualSemanticSplitter: supplyData called!');
+		const debugEnabled = process.env.N8N_NODES_DEBUG === '1' || process.env.N8N_NODES_DEBUG === 'true';
+		if (debugEnabled) {
+			console.log('ContextualSemanticSplitter: supplyData called!');
+		}
 		
 		const chatModel = (await this.getInputConnectionData(
 			NodeConnectionType.AiLanguageModel,
@@ -776,9 +803,13 @@ export class SemanticSplitterWithContext implements INodeType {
 		}
 
 		// Return the splitter instance wrapped with logging for visual feedback
-		console.log('ContextualSemanticSplitter: About to wrap splitter with logWrapper');
+		if (debugEnabled) {
+			console.log('ContextualSemanticSplitter: About to wrap splitter with logWrapper');
+		}
 		const wrappedSplitter = logWrapper(splitter, this);
-		console.log('ContextualSemanticSplitter: Wrapped splitter created');
+		if (debugEnabled) {
+			console.log('ContextualSemanticSplitter: Wrapped splitter created');
+		}
 		
 		return {
 			response: wrappedSplitter,

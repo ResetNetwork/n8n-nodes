@@ -33,9 +33,8 @@ function logAiEvent(executeFunctions: ISupplyDataFunctions, eventType: string): 
 
 export function logWrapper<T extends object>(originalInstance: T, executeFunctions: ISupplyDataFunctions): T {
     const debugEnabled = process.env.N8N_NODES_DEBUG === '1' || process.env.N8N_NODES_DEBUG === 'true';
-    // Always enable logging for TextSplitter to provide visual feedback
-    const enableLogging = debugEnabled || (originalInstance.constructor.name.includes('Splitter'));
-    if (enableLogging) {
+    
+    if (debugEnabled) {
         console.log('LogWrapper: Wrapping instance of type:', originalInstance.constructor.name);
     }
 	
@@ -43,8 +42,8 @@ export function logWrapper<T extends object>(originalInstance: T, executeFunctio
 		get(target, prop, receiver) {
 			const originalValue = Reflect.get(target, prop, receiver);
 			
-			// Log all method calls for debugging
-            if (enableLogging && typeof originalValue === 'function' && typeof prop === 'string') {
+			// Log all method calls for debugging (only when debug enabled)
+            if (debugEnabled && typeof originalValue === 'function' && typeof prop === 'string') {
                 console.log('LogWrapper: Method accessed:', prop);
 			}
 
