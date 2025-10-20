@@ -107,7 +107,7 @@ export class EmbeddingsGoogleGeminiExtended implements INodeType {
 						property: 'model',
 					},
 				},
-				default: 'models/text-embedding-004',
+				default: 'models/gemini-embedding-001',
 			},
 			{
 				displayName: 'Output Dimensions',
@@ -202,7 +202,7 @@ export class EmbeddingsGoogleGeminiExtended implements INodeType {
 		const modelName = this.getNodeParameter(
 			'modelName',
 			itemIndex,
-			'models/text-embedding-004',
+			'models/gemini-embedding-001',
 		) as string;
 		const outputDimensions = this.getNodeParameter('outputDimensions', itemIndex, 0) as number;
 		const options = this.getNodeParameter('options', itemIndex, {}) as {
@@ -213,6 +213,9 @@ export class EmbeddingsGoogleGeminiExtended implements INodeType {
 		};
 
 		const credentials = await this.getCredentials('googlePalmApi');
+
+		// Debug logging
+		this.logger.debug(`Model: ${modelName}, Output Dimensions: ${outputDimensions}`);
 
 		// Create embeddings instance using LangChain's GoogleGenerativeAIEmbeddings
 		const embeddings = new GoogleGenerativeAIEmbeddings({
