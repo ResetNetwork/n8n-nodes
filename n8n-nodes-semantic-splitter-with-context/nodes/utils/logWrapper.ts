@@ -33,7 +33,9 @@ function logAiEvent(executeFunctions: ISupplyDataFunctions, eventType: string): 
 
 export function logWrapper<T extends object>(originalInstance: T, executeFunctions: ISupplyDataFunctions): T {
     const debugEnabled = process.env.N8N_NODES_DEBUG === '1' || process.env.N8N_NODES_DEBUG === 'true';
-    if (debugEnabled) {
+    // Always enable logging for TextSplitter to provide visual feedback
+    const enableLogging = debugEnabled || (originalInstance.constructor.name.includes('Splitter'));
+    if (enableLogging) {
         console.log('LogWrapper: Wrapping instance of type:', originalInstance.constructor.name);
     }
 	
@@ -42,7 +44,7 @@ export function logWrapper<T extends object>(originalInstance: T, executeFunctio
 			const originalValue = Reflect.get(target, prop, receiver);
 			
 			// Log all method calls for debugging
-            if (debugEnabled && typeof originalValue === 'function' && typeof prop === 'string') {
+            if (enableLogging && typeof originalValue === 'function' && typeof prop === 'string') {
                 console.log('LogWrapper: Method accessed:', prop);
 			}
 
@@ -50,7 +52,7 @@ export function logWrapper<T extends object>(originalInstance: T, executeFunctio
 			if (originalInstance instanceof TextSplitter) {
 				if (prop === 'splitText' && 'splitText' in target) {
                     return async (text: string): Promise<string[]> => {
-                        if (debugEnabled) {
+                        if (enableLogging) {
                             console.log('LogWrapper: splitText intercepted, text length:', text?.length || 0);
                         }
                         const connectionType = 'aiTextSplitter' as any;
@@ -69,7 +71,7 @@ export function logWrapper<T extends object>(originalInstance: T, executeFunctio
 							arguments: [text],
 						})) as string[];
 
-                        if (debugEnabled) {
+                        if (enableLogging) {
                             console.log('LogWrapper: splitText completed, chunks:', response?.length || 0);
                         }
 
@@ -87,7 +89,7 @@ export function logWrapper<T extends object>(originalInstance: T, executeFunctio
 
 				if (prop === 'splitDocuments' && 'splitDocuments' in target) {
                     return async (documents: any[]): Promise<any[]> => {
-                        if (debugEnabled) {
+                        if (enableLogging) {
                             console.log('LogWrapper: splitDocuments intercepted, docs:', documents?.length || 0);
                         }
                         const connectionType = 'aiTextSplitter' as any;
@@ -106,7 +108,7 @@ export function logWrapper<T extends object>(originalInstance: T, executeFunctio
 							arguments: [documents],
 						})) as any[];
 
-                        if (debugEnabled) {
+                        if (enableLogging) {
                             console.log('LogWrapper: splitDocuments completed, chunks:', response?.length || 0);
                         }
 
