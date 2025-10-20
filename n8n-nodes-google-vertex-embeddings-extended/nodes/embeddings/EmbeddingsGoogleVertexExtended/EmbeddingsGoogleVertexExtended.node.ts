@@ -1,4 +1,5 @@
 import {
+    NodeConnectionType,
     ISupplyDataFunctions,
     INodeType,
     INodeTypeDescription,
