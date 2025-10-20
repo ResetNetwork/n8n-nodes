@@ -1,13 +1,14 @@
 import {
-	ISupplyDataFunctions,
-	INodeType,
-	INodeTypeDescription,
-	SupplyData,
 	NodeConnectionType,
+	type INodeType,
+	type INodeTypeDescription,
+	type ISupplyDataFunctions,
+	type SupplyData,
 } from 'n8n-workflow';
 
 import { GoogleGenerativeAIEmbeddings } from '@langchain/google-genai';
 import { logWrapper } from '../../utils/logWrapper';
+import { getConnectionHintNoticeField } from '../../utils/sharedFields';
 
 export class EmbeddingsGoogleGeminiExtended implements INodeType {
 	description: INodeTypeDescription = {
@@ -43,15 +44,70 @@ export class EmbeddingsGoogleGeminiExtended implements INodeType {
 		// And it supplies data to the root node
 		outputs: [NodeConnectionType.AiEmbedding],
 		outputNames: ['Embeddings'],
+		requestDefaults: {
+			ignoreHttpStatusErrors: true,
+			baseURL: '={{ $credentials.host }}',
+		},
 		properties: [
+			getConnectionHintNoticeField([NodeConnectionType.AiVectorStore]),
 			{
-				displayName: 'Model Name',
-				name: 'model',
-				type: 'string',
-				description:
-					'The model to use for generating embeddings. <a href="https://ai.google.dev/gemini-api/docs/models/gemini#text-embedding">Learn more</a>.',
-				default: 'text-embedding-004',
-				placeholder: 'e.g. text-embedding-004, embedding-001, gemini-embedding-001',
+				displayName: 'Each model is using different dimensional density for embeddings. Please make sure to use the same dimensionality for your vector store. The default model is using 768-dimensional embeddings.',
+				name: 'notice',
+				type: 'notice',
+				default: '',
+			},
+			{
+				displayName: 'Model',
+				name: 'modelName',
+				type: 'options',
+				description: 'The model which will generate the embeddings. <a href="https://ai.google.dev/gemini-api/docs/models/gemini#text-embedding">Learn more</a>.',
+				typeOptions: {
+					loadOptions: {
+						routing: {
+							request: {
+								method: 'GET',
+								url: '/v1beta/models',
+							},
+							output: {
+								postReceive: [
+									{
+										type: 'rootProperty',
+										properties: {
+											property: 'models',
+										},
+									},
+									{
+										type: 'filter',
+										properties: {
+											pass: "={{ $responseItem.name.includes('embedding') }}",
+										},
+									},
+									{
+										type: 'setKeyValue',
+										properties: {
+											name: '={{$responseItem.name}}',
+											value: '={{$responseItem.name}}',
+											description: '={{$responseItem.description}}',
+										},
+									},
+									{
+										type: 'sort',
+										properties: {
+											key: 'name',
+										},
+									},
+								],
+							},
+						},
+					},
+				},
+				routing: {
+					send: {
+						type: 'body',
+						property: 'model',
+					},
+				},
+				default: 'models/text-embedding-004',
 			},
 			{
 				displayName: 'Output Dimensions',
@@ -140,23 +196,29 @@ export class EmbeddingsGoogleGeminiExtended implements INodeType {
 		],
 	};
 
-	async supplyData(this: ISupplyDataFunctions): Promise<SupplyData> {
-		console.log('GoogleGeminiEmbeddings: supplyData called!');
+	async supplyData(this: ISupplyDataFunctions, itemIndex: number): Promise<SupplyData> {
+		this.logger.debug('Supply data for embeddings Google Gemini Extended');
 		
-		const credentials = await this.getCredentials('googlePalmApi');
-		const modelName = this.getNodeParameter('model', 0) as string;
-		const outputDimensions = this.getNodeParameter('outputDimensions', 0, 0) as number;
-		const options = this.getNodeParameter('options', 0, {}) as {
+		const modelName = this.getNodeParameter(
+			'modelName',
+			itemIndex,
+			'models/text-embedding-004',
+		) as string;
+		const outputDimensions = this.getNodeParameter('outputDimensions', itemIndex, 0) as number;
+		const options = this.getNodeParameter('options', itemIndex, {}) as {
 			taskType?: string;
 			title?: string;
 			stripNewLines?: boolean;
 			batchSize?: number;
 		};
 
+		const credentials = await this.getCredentials('googlePalmApi');
+
 		// Create embeddings instance using LangChain's GoogleGenerativeAIEmbeddings
 		const embeddings = new GoogleGenerativeAIEmbeddings({
 			apiKey: credentials.apiKey as string,
-			modelName: modelName,
+			...(credentials.host && { baseUrl: credentials.host as string }),
+			model: modelName,
 			...(outputDimensions > 0 && { outputDimensionality: outputDimensions }),
 			...(options.taskType && { taskType: options.taskType as any }),
 			...(options.title && { title: options.title }),
@@ -166,12 +228,8 @@ export class EmbeddingsGoogleGeminiExtended implements INodeType {
 		});
 
 		// Return the embeddings instance wrapped with logging for visual feedback
-		console.log('GoogleGeminiEmbeddings: About to wrap embeddings with logWrapper');
-		const wrappedEmbeddings = logWrapper(embeddings, this);
-		console.log('GoogleGeminiEmbeddings: Wrapped embeddings created');
-		
 		return {
-			response: wrappedEmbeddings,
+			response: logWrapper(embeddings, this),
 		};
 	}
 } 
