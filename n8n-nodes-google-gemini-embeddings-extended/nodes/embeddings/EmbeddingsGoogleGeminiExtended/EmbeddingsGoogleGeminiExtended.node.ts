@@ -44,7 +44,7 @@ class CustomGoogleGenerativeAIEmbeddings {
 			
 			const requestConfig: any = {
 				model: this.model,
-				content: { parts: [{ text }] },  // Proper content format as per REST API
+				contents: text,  // Try simple string format like the JS documentation
 			};
 
 			// Add custom parameters using the official API format
@@ -65,8 +65,8 @@ class CustomGoogleGenerativeAIEmbeddings {
 				const response = await this.client.models.embedContent(requestConfig);
 				console.log('CustomGoogleGenerativeAI: Full API response:', JSON.stringify(response, null, 2));
 				
-				// Use singular 'embedding' as per official API format
-				const embedding = response.embedding?.values;
+				// Try both response formats
+				const embedding = response.embedding?.values || response.embeddings?.[0]?.values;
 				
 				if (!embedding || !Array.isArray(embedding)) {
 					console.error('CustomGoogleGenerativeAI: Invalid response structure:', response);
