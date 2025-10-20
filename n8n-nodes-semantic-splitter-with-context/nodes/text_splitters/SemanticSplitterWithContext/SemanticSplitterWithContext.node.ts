@@ -664,6 +664,59 @@ export class SemanticSplitterWithContext implements INodeType {
 						default: '(?<=[.?!])\\s+',
 						description: 'Regular expression to split text into sentences',
 					},
+					{
+						displayName: 'Use Global Summary',
+						name: 'useGlobalSummary',
+						type: 'boolean',
+						default: false,
+						description: 'Generate a single document summary and use it to contextualize each chunk instead of including the entire document in every prompt',
+					},
+					{
+						displayName: 'Global Summary Prompt',
+						name: 'globalSummaryPrompt',
+						type: 'string',
+						typeOptions: {
+							rows: 4,
+						},
+						default: 'Summarize the following document in 5-7 sentences, focusing on the main topics and concepts that would help retrieve relevant chunks.',
+						description: 'Instructions for generating the global document summary when enabled',
+						displayOptions: {
+							show: {
+								'/useGlobalSummary': [true],
+							},
+						},
+					},
+					{
+						displayName: 'Use Neighborhood Window',
+						name: 'useNeighborhoodWindow',
+						type: 'boolean',
+						default: false,
+						description: 'Include a few sentences before and after the chunk in the prompt to provide local context',
+					},
+					{
+						displayName: 'Window Sentences Before',
+						name: 'windowSentencesBefore',
+						type: 'number',
+						default: 2,
+						description: 'Number of sentences to include before the chunk when building neighborhood context',
+						displayOptions: {
+							show: {
+								'/useNeighborhoodWindow': [true],
+							},
+						},
+					},
+					{
+						displayName: 'Window Sentences After',
+						name: 'windowSentencesAfter',
+						type: 'number',
+						default: 2,
+						description: 'Number of sentences to include after the chunk when building neighborhood context',
+						displayOptions: {
+							show: {
+								'/useNeighborhoodWindow': [true],
+							},
+						},
+					},
 				],
 			},
 		],
