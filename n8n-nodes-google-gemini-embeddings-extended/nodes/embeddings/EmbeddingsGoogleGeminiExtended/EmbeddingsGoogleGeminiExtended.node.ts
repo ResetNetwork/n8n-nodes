@@ -39,7 +39,12 @@ class CustomGoogleGenerativeAIEmbeddings extends Embeddings {
 	}
 
 	private async makeApiCall(payload: any): Promise<any> {
-		const url = `${this.baseUrl || 'https://generativelanguage.googleapis.com'}/v1beta/models/${this.model}:embedContent?key=${this.apiKey}`;
+		// Ensure model name doesn't have 'models/' prefix for the URL path
+		const modelName = this.model.replace('models/', '');
+		const url = `${this.baseUrl || 'https://generativelanguage.googleapis.com'}/v1beta/models/${modelName}:embedContent?key=${this.apiKey}`;
+		
+		console.log('CustomGoogleGenerativeAI: Making API call to:', url);
+		console.log('CustomGoogleGenerativeAI: Model name used:', modelName);
 		
 		const response = await fetch(url, {
 			method: 'POST',
@@ -50,7 +55,9 @@ class CustomGoogleGenerativeAIEmbeddings extends Embeddings {
 		});
 
 		if (!response.ok) {
-			throw new Error(`Google Gemini API error: ${response.status} ${response.statusText}`);
+			const errorText = await response.text();
+			console.error('CustomGoogleGenerativeAI: API Error Response:', errorText);
+			throw new Error(`Google Gemini API error: ${response.status} ${response.statusText} - ${errorText}`);
 		}
 
 		return response.json();
@@ -63,7 +70,6 @@ class CustomGoogleGenerativeAIEmbeddings extends Embeddings {
 		for (const document of documents) {
 			const text = this.stripNewLines ? document.replace(/\n/g, ' ') : document;
 			const payload: any = {
-				model: this.model,
 				content: { parts: [{ text }] },
 			};
 
