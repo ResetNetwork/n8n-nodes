@@ -1,17 +1,16 @@
 # n8n-nodes-google-gemini-embeddings-extended
 
-This is an n8n community sub-node that provides Google Gemini Embeddings with extended features, including support for output dimensions, task types, and special handling for models like `gemini-embedding-001`.
+This is an n8n community sub-node that provides Google Gemini Embeddings with extended features, including support for task types, titles, and optimized handling for different Google embedding models.
 
 ## Features
 
-- Support for any Google Gemini embedding model (specify by name)
-- **Output dimensions configuration** (for supported models)
-- **Task type specification** for optimized embeddings
-- **Title support** for retrieval documents
-- **Batch size control** for rate limit management
-- **Special handling for gemini-embedding-001** (single input per request)
+- Support for any Google Gemini embedding model (dynamically loaded from Google's API)
+- **Task type specification** for optimized embeddings (RETRIEVAL_DOCUMENT, RETRIEVAL_QUERY, etc.)
+- **Title support** for retrieval documents (improves embedding quality)
+- **Optimized API handling** using official @google/genai library
 - Uses standard Google API credentials (same as other Google AI nodes)
 - Works as a sub-node with vector stores and other AI nodes
+- Clean, production-ready implementation
 
 ## Installation
 
@@ -67,17 +66,10 @@ This is a **sub-node** that provides embeddings functionality to other n8n AI no
 
 #### Model Name
 
-Enter any valid Google Gemini embedding model name. Examples:
-- `text-embedding-004` (Latest, supports output dimensions)
-- `gemini-embedding-001` (Supports output dimensions, processes one input at a time)
-- `embedding-001` (Legacy model)
-
-#### Output Dimensions
-
-For models that support it, you can specify the number of output dimensions:
-
-- Set to `0` to use the model's default dimensions
-- Set to a specific number (e.g., `256`, `768`, `3072`) to get embeddings of that size
+Select any valid Google Gemini embedding model from the dropdown (dynamically loaded from Google's API). Examples:
+- `text-embedding-004` (Latest model, 768 default dimensions)
+- `gemini-embedding-001` (Advanced model, 3072 default dimensions)
+- `embedding-001` (Legacy model, 768 default dimensions)
 
 #### Task Types
 
@@ -96,7 +88,6 @@ Optimize your embeddings by specifying the task type:
 
 - **Title**: Add a title to documents (only for RETRIEVAL_DOCUMENT task type)
 - **Strip New Lines**: Remove line breaks from input text (enabled by default)
-- **Batch Size**: Control how many texts are processed at once (default: 100)
 
 ## Use Cases
 
@@ -110,11 +101,9 @@ Optimize your embeddings by specifying the task type:
 
 ### gemini-embedding-001
 
-This model has special requirements:
-- Only accepts **one text input per request**
-- The node automatically handles this limitation
-- Processing may be slower for large datasets
-- Supports output dimensions up to 3072
+- Advanced model with 3072 default dimensions
+- High-quality embeddings for complex use cases
+- Optimized for semantic similarity and retrieval tasks
 
 ### text-embedding-004
 
@@ -126,11 +115,11 @@ This model has special requirements:
 
 This community node extends the official Google Gemini Embeddings node with:
 
-1. **Output Dimensions Support**: Configure the size of embedding vectors
-2. **Extended Task Types**: More task type options for optimization
-3. **Title Support**: Add titles to documents for better retrieval
-4. **Batch Size Control**: Manage rate limits effectively
-5. **Better Error Messages**: More detailed error information
+1. **Extended Task Types**: More task type options for embedding optimization
+2. **Title Support**: Add titles to documents for better retrieval quality
+3. **Official Library**: Uses @google/genai library for better compatibility
+4. **Model Flexibility**: Dynamic model loading from Google's available models
+5. **Production Ready**: Clean implementation with optional debug logging
 
 ## Compatible Nodes
 
@@ -161,16 +150,12 @@ This embeddings node can be used with:
    - Check [Google's documentation](https://ai.google.dev/gemini-api/docs/models/gemini#text-embedding) for valid model names
 
 3. **Rate Limit Errors**
-   - Reduce the batch size in options
    - Add delays between requests if processing large datasets
+   - Check your Google API quota and rate limits
 
-4. **Dimension Errors**
-   - Not all models support custom dimensions
-   - Check model documentation for supported dimension values
-
-5. **Bad Request Errors**
-   - `gemini-embedding-001` only accepts one input at a time (handled automatically)
+4. **Bad Request Errors**
    - Ensure text inputs are within token limits
+   - Verify model names are valid and available
 
 ## Contributing
 
