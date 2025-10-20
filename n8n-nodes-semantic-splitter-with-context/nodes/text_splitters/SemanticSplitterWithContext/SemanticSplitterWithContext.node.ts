@@ -1,7 +1,6 @@
 import {
 	INodeType,
 	INodeTypeDescription,
-	NodeConnectionType,
 	ISupplyDataFunctions,
 	SupplyData,
 } from 'n8n-workflow';
