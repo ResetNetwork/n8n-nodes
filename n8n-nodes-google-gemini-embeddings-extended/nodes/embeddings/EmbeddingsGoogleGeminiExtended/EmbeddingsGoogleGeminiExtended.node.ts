@@ -27,8 +27,12 @@ class CustomGoogleGenerativeAIEmbeddings {
 		title?: string;
 		stripNewLines?: boolean;
 	}) {
-		this.client = new GoogleGenAI({ apiKey: config.apiKey });
+		this.client = new GoogleGenAI({ 
+			vertexai: false,  // Use direct Gemini API, not Vertex AI
+			apiKey: config.apiKey 
+		});
 		this.model = config.model.replace('models/', ''); // Remove models/ prefix
+		console.log('CustomGoogleGenerativeAI: Constructor - original model:', config.model, 'cleaned model:', this.model);
 		this.outputDimensionality = config.outputDimensionality;
 		this.taskType = config.taskType;
 		this.title = config.title;
