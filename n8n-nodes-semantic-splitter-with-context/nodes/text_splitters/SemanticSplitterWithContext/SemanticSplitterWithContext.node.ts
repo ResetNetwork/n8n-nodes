@@ -177,12 +177,20 @@ class SemanticDoublePassMergingSplitterWithContext extends TextSplitter {
 					const windowEnd = Math.min(sentences.length - 1, chunk.endIdx + this.windowSentencesAfter);
 					neighborhood = sentences.slice(windowStart, windowEnd + 1).join(' ');
 				}
-				const contextualContent = await this._generateContextualContent(
-					document.pageContent,
-					chunk.text,
-					globalSummary,
-					neighborhood,
-				);
+				// Generate contextual content only if we don't have global summary
+				let contextualContent: string;
+				if (globalSummary) {
+					// Use global summary directly without additional API calls
+					contextualContent = this._formatContextualOutput(globalSummary, chunk.text);
+				} else {
+					// Generate contextual description for this chunk
+					contextualContent = await this._generateContextualContent(
+						document.pageContent,
+						chunk.text,
+						globalSummary,
+						neighborhood,
+					);
+				}
 				
 				splitDocuments.push(
 					new Document({
