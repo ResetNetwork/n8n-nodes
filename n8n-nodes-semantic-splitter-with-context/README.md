@@ -10,18 +10,17 @@ A custom n8n node that provides semantic text splitting with contextual enhancem
 - **Multiple Threshold Methods**: Percentile, standard deviation, interquartile, and gradient-based breakpoint detection
 - **Enhanced Size Constraints**: Sentence-boundary-aware splitting and merging with intelligent size management
 - **Flexible Sentence Splitting**: Customizable regex patterns with safety fallbacks for invalid expressions
-- **Global Summary**: Generate one document-level summary and use it to contextualize all chunks (reduces token usage)
-- **Neighborhood Window**: Add a configurable sentence window before/after each chunk for local context
+- **Global Summary**: Generate one document-level summary and reuse it for all chunks (dramatically reduces API calls)
 - **Memory Leak Protection**: Instance caching and payload size validation prevent infinite retry loops
 - **Production Ready**: Comprehensive error handling and resource management for stable operation
 
 ## How It Works
 
 1. **Document Input**: Receives documents from document loaders
-2. **Semantic Splitting**: Splits text by using semantic similarity analysis
+2. **Semantic Splitting**: Splits text by using semantic similarity analysis with intelligent merging
 3. **Context Generation**: For each chunk, generates a contextual description using the chat model
-   - Optionally includes a global document summary
-   - Optionally includes a neighborhood window (N sentences before/after the chunk)
+   - Option 1: Generate specific context per chunk using full document
+   - Option 2: Generate one global summary and reuse for all chunks (efficient for large documents)
 4. **Output Format**: Returns chunks in the format: `[context]\n\n[chunk]`
 
 ## Installation
@@ -109,11 +108,8 @@ You can choose whether to include labels in the output:
 - **Sentence Split Regex**: Pattern for splitting text into sentences (default: `(?<=[.?!])\\s+`)
 
 #### Advanced Options
-- **Use Global Summary**: Generate a single document summary and use it for all chunks (reduces token usage)
-- **Global Summary Prompt**: Custom instruction for generating the global summary
-- **Use Neighborhood Window**: Include nearby sentences around each chunk for local context
-- **Window Sentences Before**: Number of sentences to include before the chunk (default: 2)
-- **Window Sentences After**: Number of sentences to include after the chunk (default: 2)
+- **Use Global Summary**: Generate a single document summary and reuse it for all chunks (dramatically reduces API calls)
+- **Global Summary Prompt**: Custom instruction for generating the global summary (default: document overview in 5-7 sentences)
 
 ## Example Workflow
 
@@ -144,8 +140,8 @@ Chunk: The company's revenue grew by 3% over the previous quarter, reaching $314
 ## Benefits
 
 - **Improved Retrieval**: Contextual descriptions help with more accurate search results
-- **Semantic Coherence**: Chunks maintain semantic meaning through intelligent boundary detection
-- **Token Efficiency**: Global summary and neighborhood window options significantly reduce API costs
+- **Semantic Coherence**: Chunks maintain semantic meaning through intelligent boundary detection and merging
+- **Token Efficiency**: Global summary option dramatically reduces API costs for large documents
 - **Production Stability**: Memory leak protections and payload validation prevent system crashes
 - **Flexible Configuration**: Adaptable to different document types and use cases
 - **RAG Optimization**: Designed specifically for Retrieval-Augmented Generation workflows
@@ -159,28 +155,29 @@ Chunk: The company's revenue grew by 3% over the previous quarter, reaching $314
 
 ### Memory Management
 - **Instance Caching**: Prevents memory leaks during retries (max 10 cached instances)
+- **Document Caching**: Global summaries cached per document (max 5 documents)
 - **Fast Failure**: Large documents fail quickly with actionable error messages
-- **Resource Optimization**: Global summary and neighborhood window reduce memory usage
+- **Resource Optimization**: Global summary dramatically reduces memory and token usage
 
 ## Tips
 
 - **For Large Documents**: Enable "Use Global Summary" to reduce token usage and prevent payload errors
-- **For Local Context**: Enable "Use Neighborhood Window" to include surrounding sentences
+- **For Token Efficiency**: Global Summary can reduce API calls from 100+ to 1 per document
 - **For Debugging**: Set `N8N_NODES_DEBUG=1` to see detailed debug logs during development
 - **For Production**: Monitor document sizes and consider pre-processing very large files
 
 ## Changelog
 
-### v0.5.0 - Advanced Features & Production Stability
-- ✅ **New**: Global Summary option to reduce token usage for large documents
-- ✅ **New**: Neighborhood Window for local sentence context around chunks
-- ✅ **New**: Enhanced size constraints with sentence-boundary awareness
+### v0.5.1 - Production Stability & Global Summary
+- ✅ **New**: Global Summary option with document-level caching (reduces API calls from N to 1 per document)
+- ✅ **New**: Enhanced size constraints with sentence-boundary awareness  
 - ✅ **New**: Instance caching to prevent memory leaks during retries
 - ✅ **New**: Payload size validation to prevent API errors
 - ✅ **Improved**: Chat model response normalization (handles string/array/BaseMessage)
 - ✅ **Improved**: Regex safety with automatic fallbacks
 - ✅ **Fixed**: Constructor options wiring (all user settings now work correctly)
 - ✅ **Fixed**: Connection type compatibility with n8n runtime
+- ✅ **Fixed**: Endless summary generation bug (Global Summary now works correctly)
 
 ### v0.4.1 - Stability Improvements
 - ✅ **Fixed**: TypeScript compatibility with newer n8n versions
