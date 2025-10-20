@@ -8,10 +8,12 @@ A custom n8n node that provides semantic text splitting with contextual enhancem
 - **Contextual Enhancement**: Generates contextual descriptions for each chunk using a chat model implementing the technique described in [Anthropic's post](https://www.anthropic.com/news/contextual-retrieval) and inspired by Jim Le's [workflow](https://community.n8n.io/t/building-the-ultimate-rag-setup-with-contextual-summaries-sparse-vectors-and-reranking/54861)
 - **Customizable Prompts**: User-defined prompts for context generation
 - **Multiple Threshold Methods**: Percentile, standard deviation, interquartile, and gradient-based breakpoint detection
-- **Size Constraints**: Configurable minimum and maximum chunk sizes
-- **Flexible Sentence Splitting**: Customizable regex patterns for sentence detection
-- **Global Summary (optional)**: Generate one document-level summary and use it to contextualize all chunks
-- **Neighborhood Window (optional)**: Add a small sentence window before/after each chunk to provide local context with minimal tokens
+- **Enhanced Size Constraints**: Sentence-boundary-aware splitting and merging with intelligent size management
+- **Flexible Sentence Splitting**: Customizable regex patterns with safety fallbacks for invalid expressions
+- **Global Summary**: Generate one document-level summary and use it to contextualize all chunks (reduces token usage)
+- **Neighborhood Window**: Add a configurable sentence window before/after each chunk for local context
+- **Memory Leak Protection**: Instance caching and payload size validation prevent infinite retry loops
+- **Production Ready**: Comprehensive error handling and resource management for stable operation
 
 ## How It Works
 
@@ -99,15 +101,19 @@ You can choose whether to include labels in the output:
 
 ### Configuration Options
 
-- **Buffer Size**: Number of sentences to combine for context when creating embeddings
-- **Breakpoint Threshold Type**: Method for determining chunk boundaries
-- **Second Pass Threshold**: Similarity threshold for merging chunks in the second pass
-- **Min/Max Chunk Size**: Size constraints for generated chunks
-- **Sentence Split Regex**: Pattern for splitting text into sentences
-- **Use Global Summary**: Generate a single document summary and use it for all chunks
-- **Global Summary Prompt**: Instruction for generating the global summary
+#### Basic Options
+- **Buffer Size**: Number of sentences to combine for context when creating embeddings (default: 1)
+- **Breakpoint Threshold Type**: Method for determining chunk boundaries (percentile, standard deviation, interquartile, gradient)
+- **Second Pass Threshold**: Similarity threshold for merging chunks in the second pass (0-1, default: 0.8)
+- **Min/Max Chunk Size**: Size constraints for generated chunks (default: 100-2000 characters)
+- **Sentence Split Regex**: Pattern for splitting text into sentences (default: `(?<=[.?!])\\s+`)
+
+#### Advanced Options
+- **Use Global Summary**: Generate a single document summary and use it for all chunks (reduces token usage)
+- **Global Summary Prompt**: Custom instruction for generating the global summary
 - **Use Neighborhood Window**: Include nearby sentences around each chunk for local context
-- **Window Sentences Before/After**: How many sentences to include before/after the chunk when using the neighborhood window
+- **Window Sentences Before**: Number of sentences to include before the chunk (default: 2)
+- **Window Sentences After**: Number of sentences to include after the chunk (default: 2)
 
 ## Example Workflow
 
@@ -139,15 +145,47 @@ Chunk: The company's revenue grew by 3% over the previous quarter, reaching $314
 
 - **Improved Retrieval**: Contextual descriptions help with more accurate search results
 - **Semantic Coherence**: Chunks maintain semantic meaning through intelligent boundary detection
+- **Token Efficiency**: Global summary and neighborhood window options significantly reduce API costs
+- **Production Stability**: Memory leak protections and payload validation prevent system crashes
 - **Flexible Configuration**: Adaptable to different document types and use cases
 - **RAG Optimization**: Designed specifically for Retrieval-Augmented Generation workflows
-  - Combine global summary + neighborhood window to reduce tokens while preserving context
+
+## Performance & Limitations
+
+### Size Limits
+- **Maximum Document Size**: 10MB (10,000,000 characters)
+- **Maximum Prompt Size**: 100KB per API call (prevents PayloadTooLargeError)
+- **Recommended Document Size**: <50KB for optimal performance without global summary
+
+### Memory Management
+- **Instance Caching**: Prevents memory leaks during retries (max 10 cached instances)
+- **Fast Failure**: Large documents fail quickly with actionable error messages
+- **Resource Optimization**: Global summary and neighborhood window reduce memory usage
 
 ## Tips
 
-- Set `N8N_NODES_DEBUG=1` to see detailed debug logs from this node during development.
+- **For Large Documents**: Enable "Use Global Summary" to reduce token usage and prevent payload errors
+- **For Local Context**: Enable "Use Neighborhood Window" to include surrounding sentences
+- **For Debugging**: Set `N8N_NODES_DEBUG=1` to see detailed debug logs during development
+- **For Production**: Monitor document sizes and consider pre-processing very large files
 
 ## Changelog
+
+### v0.5.0 - Advanced Features & Production Stability
+- ✅ **New**: Global Summary option to reduce token usage for large documents
+- ✅ **New**: Neighborhood Window for local sentence context around chunks
+- ✅ **New**: Enhanced size constraints with sentence-boundary awareness
+- ✅ **New**: Instance caching to prevent memory leaks during retries
+- ✅ **New**: Payload size validation to prevent API errors
+- ✅ **Improved**: Chat model response normalization (handles string/array/BaseMessage)
+- ✅ **Improved**: Regex safety with automatic fallbacks
+- ✅ **Fixed**: Constructor options wiring (all user settings now work correctly)
+- ✅ **Fixed**: Connection type compatibility with n8n runtime
+
+### v0.4.1 - Stability Improvements
+- ✅ **Fixed**: TypeScript compatibility with newer n8n versions
+- ✅ **Fixed**: Debug logging can be disabled in production
+- ✅ **Updated**: Documentation links point to package README
 
 ### v0.3.0 - Zero External Dependencies
 - ✅ **Breaking Change**: Removed external LangChain dependencies
