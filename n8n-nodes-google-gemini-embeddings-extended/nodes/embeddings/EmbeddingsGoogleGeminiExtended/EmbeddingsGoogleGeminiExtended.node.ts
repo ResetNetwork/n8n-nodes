@@ -5,14 +5,13 @@ import {
 	type SupplyData,
 } from 'n8n-workflow';
 
-import { Embeddings } from '@langchain/core/embeddings';
+import { GoogleGenAI } from '@google/genai';
 import { logWrapper } from '../../utils/logWrapper';
 import { getConnectionHintNoticeField } from '../../utils/sharedFields';
 
-// Custom GoogleGenerativeAIEmbeddings that properly supports outputDimensionality
-class CustomGoogleGenerativeAIEmbeddings extends Embeddings {
-	private apiKey: string;
-	private baseUrl?: string;
+// Custom GoogleGenerativeAIEmbeddings using official @google/genai library
+class CustomGoogleGenerativeAIEmbeddings {
+	private client: any;
 	private model: string;
 	private outputDimensionality?: number;
 	private taskType?: string;
@@ -28,39 +27,12 @@ class CustomGoogleGenerativeAIEmbeddings extends Embeddings {
 		title?: string;
 		stripNewLines?: boolean;
 	}) {
-		super({});
-		this.apiKey = config.apiKey;
-		this.baseUrl = config.baseUrl;
-		this.model = config.model;
+		this.client = new GoogleGenAI({ apiKey: config.apiKey });
+		this.model = config.model.replace('models/', ''); // Remove models/ prefix
 		this.outputDimensionality = config.outputDimensionality;
 		this.taskType = config.taskType;
 		this.title = config.title;
 		this.stripNewLines = config.stripNewLines !== false;
-	}
-
-	private async makeApiCall(payload: any): Promise<any> {
-		// Ensure model name doesn't have 'models/' prefix for the URL path
-		const modelName = this.model.replace('models/', '');
-		const url = `${this.baseUrl || 'https://generativelanguage.googleapis.com'}/v1beta/models/${modelName}:embedContent?key=${this.apiKey}`;
-		
-		console.log('CustomGoogleGenerativeAI: Making API call to:', url);
-		console.log('CustomGoogleGenerativeAI: Model name used:', modelName);
-		
-		const response = await fetch(url, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-			},
-			body: JSON.stringify(payload),
-		});
-
-		if (!response.ok) {
-			const errorText = await response.text();
-			console.error('CustomGoogleGenerativeAI: API Error Response:', errorText);
-			throw new Error(`Google Gemini API error: ${response.status} ${response.statusText} - ${errorText}`);
-		}
-
-		return response.json();
 	}
 
 	async embedDocuments(documents: string[]): Promise<number[][]> {
@@ -69,27 +41,29 @@ class CustomGoogleGenerativeAIEmbeddings extends Embeddings {
 
 		for (const document of documents) {
 			const text = this.stripNewLines ? document.replace(/\n/g, ' ') : document;
-			const payload: any = {
-				content: { parts: [{ text }] },
+			
+			const requestConfig: any = {
+				model: this.model,
+				contents: text,
 			};
 
-			// Add custom parameters that LangChain doesn't support
+			// Add custom parameters using the official API format
 			if (this.outputDimensionality && this.outputDimensionality > 0) {
-				payload.outputDimensionality = this.outputDimensionality;
+				requestConfig.outputDimensionality = this.outputDimensionality;
 				console.log('CustomGoogleGenerativeAI: Setting outputDimensionality to', this.outputDimensionality);
 			}
 			if (this.taskType) {
-				payload.taskType = this.taskType;
+				requestConfig.taskType = this.taskType;
 			}
 			if (this.title && this.taskType === 'RETRIEVAL_DOCUMENT') {
-				payload.title = this.title;
+				requestConfig.title = this.title;
 			}
 
-			console.log('CustomGoogleGenerativeAI: API payload:', JSON.stringify(payload, null, 2));
+			console.log('CustomGoogleGenerativeAI: Request config:', JSON.stringify(requestConfig, null, 2));
 
 			try {
-				const response = await this.makeApiCall(payload);
-				const embedding = response.embedding?.values;
+				const response = await this.client.models.embedContent(requestConfig);
+				const embedding = response.embeddings?.[0]?.values || response.embedding?.values;
 				
 				if (!embedding || !Array.isArray(embedding)) {
 					throw new Error('Invalid embedding response from Google Gemini API');
