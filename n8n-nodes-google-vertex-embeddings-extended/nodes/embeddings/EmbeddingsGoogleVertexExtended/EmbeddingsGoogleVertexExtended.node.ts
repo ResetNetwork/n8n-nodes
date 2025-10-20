@@ -132,29 +132,28 @@ export class EmbeddingsGoogleVertexExtended implements INodeType {
 	};
 
 
-	async supplyData(this: ISupplyDataFunctions, itemIndex: number): Promise<SupplyData> {
-		this.logger.debug('Supply data for embeddings Google Vertex Extended');
+	async supplyData(this: ISupplyDataFunctions): Promise<SupplyData> {
+		console.log('GoogleVertexEmbeddings: supplyData called!');
 		
 		const credentials = await this.getCredentials('googleApi');
-		const privateKey = (credentials.privateKey as string).replace(/\\n/g, '\n');
-		const email = (credentials.email as string).trim();
-		const region = (credentials.region as string) || 'us-central1';
-		const modelName = this.getNodeParameter('modelName', itemIndex) as string;
-		const projectId = this.getNodeParameter('projectId', itemIndex) as string;
-		const outputDimensions = this.getNodeParameter('outputDimensions', itemIndex, 0) as number;
-		const options = this.getNodeParameter('options', itemIndex, {}) as {
+		const projectId = this.getNodeParameter('projectId', 0) as string;
+		const modelName = this.getNodeParameter('modelName', 0) as string;
+		const outputDimensions = this.getNodeParameter('outputDimensions', 0, 0) as number;
+		const options = this.getNodeParameter('options', 0, {}) as {
 			taskType?: string;
 		};
 
-		// Debug logging
-		this.logger.debug(`Model: ${modelName}, Output Dimensions: ${outputDimensions}, Project: ${projectId}`);
+		const region = (credentials.region as string) || 'us-central1';
+
+		// Format private key like the official node does
+		const privateKey = (credentials.privateKey as string).replace(/\\n/g, '\n');
 
 		// Create embeddings instance using LangChain's VertexAIEmbeddings
 		const embeddings = new VertexAIEmbeddings({
 			authOptions: {
 				projectId,
 				credentials: {
-					client_email: email,
+					client_email: credentials.email as string,
 					private_key: privateKey,
 				},
 			},
@@ -165,8 +164,12 @@ export class EmbeddingsGoogleVertexExtended implements INodeType {
 		});
 
 		// Return the embeddings instance wrapped with logging for visual feedback
+		console.log('GoogleVertexEmbeddings: About to wrap embeddings with logWrapper');
+		const wrappedEmbeddings = logWrapper(embeddings, this);
+		console.log('GoogleVertexEmbeddings: Wrapped embeddings created');
+		
 		return {
-			response: logWrapper(embeddings, this),
+			response: wrappedEmbeddings,
 		};
 	}
 } 
