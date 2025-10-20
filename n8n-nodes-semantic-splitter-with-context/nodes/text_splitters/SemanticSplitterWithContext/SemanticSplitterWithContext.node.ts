@@ -36,10 +36,9 @@ class SemanticDoublePassMergingSplitterWithContext extends TextSplitter {
 	private minChunkSize?: number;
 	private maxChunkSize?: number;
 	private secondPassThreshold: number;
+	private summaryPrompt: string;
 	private contextPrompt: string;
 	private includeLabels: boolean;
-	private useGlobalSummary: boolean;
-	private globalSummaryPrompt: string;
 	private documentSummaryCache: Map<string, string> = new Map();
 
 	constructor(
@@ -54,10 +53,9 @@ class SemanticDoublePassMergingSplitterWithContext extends TextSplitter {
 			minChunkSize?: number;
 			maxChunkSize?: number;
 			secondPassThreshold?: number;
+			summaryPrompt?: string;
 			contextPrompt?: string;
 			includeLabels?: boolean;
-			useGlobalSummary?: boolean;
-			globalSummaryPrompt?: string;
 		} = {},
 	) {
 		super();
@@ -76,10 +74,9 @@ class SemanticDoublePassMergingSplitterWithContext extends TextSplitter {
 		this.minChunkSize = options.minChunkSize;
 		this.maxChunkSize = options.maxChunkSize;
 		this.secondPassThreshold = options.secondPassThreshold ?? 0.8;
-		this.contextPrompt = options.contextPrompt ?? `Generate a brief contextual summary for this text chunk to enhance search retrieval, two to three short sentences max. The chunk contains merged content from different document sections, so focus on the main topics and concepts rather than the sequential flow. Answer only with the succinct context and nothing else.`;
+		this.summaryPrompt = options.summaryPrompt ?? `Summarize the following document in 5-7 sentences, focusing on the main topics and concepts that would help retrieve relevant chunks.`;
+		this.contextPrompt = options.contextPrompt ?? `Using the document summary above, generate a brief contextual description that explains what this specific chunk covers and how it relates to the overall document. Focus on the unique aspects of this chunk. Keep it to 2-3 sentences and answer only with the context.`;
 		this.includeLabels = options.includeLabels ?? false;
-		this.useGlobalSummary = options.useGlobalSummary ?? false;
-		this.globalSummaryPrompt = options.globalSummaryPrompt ?? `Summarize the following document in 5-7 sentences, focusing on the main topics and concepts that would help retrieve relevant chunks.`;
 	}
 
 	async splitText(text: string): Promise<string[]> {
@@ -179,104 +176,68 @@ class SemanticDoublePassMergingSplitterWithContext extends TextSplitter {
 				return this._formatContextualOutput('', chunk);
 			}
 
-			console.log('SemanticSplitter: _generateContextualContent called with useGlobalSummary:', this.useGlobalSummary, 'documentLength:', wholeDocument.length);
-			
-			let context: string = '';
 			const documentHash = this._hashDocument(wholeDocument);
-
-			// Only use Global Summary for documents large enough to benefit from it
-			if (this.useGlobalSummary && wholeDocument.length > 1000) {
-				console.log('SemanticSplitter: Taking Global Summary path');
-				// Generate document summary once and cache it
-				let globalSummary = this.documentSummaryCache.get(documentHash);
+			
+			// Generate document summary once and cache it
+			let globalSummary = this.documentSummaryCache.get(documentHash);
+			
+			if (!globalSummary) {
+				// Generate global summary for this document
+				const summaryPrompt = `${this.summaryPrompt}\n\n<document>\n${wholeDocument}\n</document>`;
 				
-				if (!globalSummary) {
-					// Generate global summary for this document
-					const summaryPrompt = `${this.globalSummaryPrompt}\n\n<document>\n${wholeDocument}\n</document>`;
-					
-					// Validate summary prompt size
-					if (summaryPrompt.length > 100_000) {
-						throw new Error(`Document too large for global summary (${summaryPrompt.length} characters). Consider using smaller documents.`);
-					}
-					
-					const summaryResponse = await this.chatModel.invoke(summaryPrompt);
-					if (typeof summaryResponse === 'string') {
-						globalSummary = summaryResponse;
-					} else if (summaryResponse && typeof (summaryResponse as any).content === 'string') {
-						globalSummary = (summaryResponse as any).content as string;
-					} else if (summaryResponse && Array.isArray((summaryResponse as any).content)) {
-						const blocks = (summaryResponse as any).content as Array<any>;
-						globalSummary = blocks
-							.map((b) => (typeof b?.text === 'string' ? b.text : typeof b === 'string' ? b : ''))
-							.filter(Boolean)
-							.join('\n');
-					}
-					
-					if (globalSummary) {
-						// Cache the summary and limit cache size
-						if (this.documentSummaryCache.size >= 5) {
-							// Clear oldest entry
-							const firstKey = this.documentSummaryCache.keys().next().value;
-							if (firstKey) this.documentSummaryCache.delete(firstKey);
-						}
-						this.documentSummaryCache.set(documentHash, globalSummary);
-					}
+				// Validate summary prompt size
+				if (summaryPrompt.length > 100_000) {
+					throw new Error(`Document too large for global summary (${summaryPrompt.length} characters). Consider using smaller documents.`);
 				}
 				
-				// Generate chunk-specific context using global summary instead of full document
-				const contextPrompt = `<document_summary>\n${globalSummary}\n</document_summary>\nHere is the chunk we want to situate within the document context\n<chunk>\n${chunk}\n</chunk>\n${this.contextPrompt}`;
-				
-				// Validate prompt size
-				if (contextPrompt.length > 100_000) {
-					throw new Error(`Context prompt too large (${contextPrompt.length} characters).`);
-				}
-				
-				const response = await this.chatModel.invoke(contextPrompt);
-				if (typeof response === 'string') {
-					context = response;
-				} else if (response && typeof (response as any).content === 'string') {
-					context = (response as any).content as string;
-				} else if (response && Array.isArray((response as any).content)) {
-					const blocks = (response as any).content as Array<any>;
-					context = blocks
+				const summaryResponse = await this.chatModel.invoke(summaryPrompt);
+				if (typeof summaryResponse === 'string') {
+					globalSummary = summaryResponse;
+				} else if (summaryResponse && typeof (summaryResponse as any).content === 'string') {
+					globalSummary = (summaryResponse as any).content as string;
+				} else if (summaryResponse && Array.isArray((summaryResponse as any).content)) {
+					const blocks = (summaryResponse as any).content as Array<any>;
+					globalSummary = blocks
 						.map((b) => (typeof b?.text === 'string' ? b.text : typeof b === 'string' ? b : ''))
 						.filter(Boolean)
 						.join('\n');
 				}
-				console.log('SemanticSplitter: Generated chunk context using global summary, context length:', context.length);
-			} else {
-				console.log('SemanticSplitter: Taking per-chunk context path');
-				// Generate specific context for this chunk using full document
-				const fullPrompt = `<document>\n${wholeDocument}\n</document>\nHere is the chunk we want to situate within the whole document\n<chunk>\n${chunk}\n</chunk>\n${this.contextPrompt}`;
-
-				// Validate payload size to prevent PayloadTooLargeError
-				if (fullPrompt.length > 100_000) {
-					throw new Error(
-						`Prompt too large for API call (${fullPrompt.length} characters). Enable Global Summary to reduce prompt size.`,
-					);
-				}
-
-				const response = await this.chatModel.invoke(fullPrompt);
-				if (typeof response === 'string') {
-					context = response;
-				} else if (response && typeof (response as any).content === 'string') {
-					context = (response as any).content as string;
-				} else if (response && Array.isArray((response as any).content)) {
-					const blocks = (response as any).content as Array<any>;
-					context = blocks
-						.map((b) => (typeof b?.text === 'string' ? b.text : typeof b === 'string' ? b : ''))
-						.filter(Boolean)
-						.join('\n');
+				
+				if (globalSummary) {
+					// Cache the summary and limit cache size
+					if (this.documentSummaryCache.size >= 5) {
+						// Clear oldest entry
+						const firstKey = this.documentSummaryCache.keys().next().value;
+						if (firstKey) this.documentSummaryCache.delete(firstKey);
+					}
+					this.documentSummaryCache.set(documentHash, globalSummary);
 				}
 			}
 			
+			// Generate chunk-specific context using global summary
+			const contextPrompt = `<document_summary>\n${globalSummary}\n</document_summary>\nHere is a specific chunk from this document:\n<chunk>\n${chunk}\n</chunk>\n\n${this.contextPrompt}`;
+			
+			// Validate prompt size
+			if (contextPrompt.length > 100_000) {
+				throw new Error(`Context prompt too large (${contextPrompt.length} characters).`);
+			}
+			
+			const response = await this.chatModel.invoke(contextPrompt);
+			let context: string = '';
+			if (typeof response === 'string') {
+				context = response;
+			} else if (response && typeof (response as any).content === 'string') {
+				context = (response as any).content as string;
+			} else if (response && Array.isArray((response as any).content)) {
+				const blocks = (response as any).content as Array<any>;
+				context = blocks
+					.map((b) => (typeof b?.text === 'string' ? b.text : typeof b === 'string' ? b : ''))
+					.filter(Boolean)
+					.join('\n');
+			}
+			
 			// Combine context and chunk with selected format
-			console.log('SemanticSplitter: About to format - context length:', context.length, 'chunk length:', chunk.length);
-			console.log('SemanticSplitter: Context preview:', context.substring(0, 100) + '...');
-			console.log('SemanticSplitter: Chunk preview:', chunk.substring(0, 100) + '...');
-			const result = this._formatContextualOutput(context, chunk);
-			console.log('SemanticSplitter: Final formatted result preview:', result.substring(0, 200) + '...');
-			return result;
+			return this._formatContextualOutput(context, chunk);
 		} catch (error) {
 			console.error('Error generating contextual content:', error);
 			// Fallback to just the chunk if context generation fails
@@ -363,6 +324,7 @@ class SemanticDoublePassMergingSplitterWithContext extends TextSplitter {
 			const sortedDistances = [...distances].sort((a, b) => b - a);
 			const index = Math.min(this.numberOfChunks - 1, sortedDistances.length - 1);
 			threshold = sortedDistances[index]!;
+			console.log(`SemanticSplitter: numberOfChunks=${this.numberOfChunks}, distances.length=${distances.length}, sortedDistances=${sortedDistances.slice(0,5)}, using threshold=${threshold}`);
 		} else if (this.breakpointThresholdAmount !== undefined) {
 			threshold = this.breakpointThresholdAmount;
 		} else {
@@ -424,7 +386,8 @@ class SemanticDoublePassMergingSplitterWithContext extends TextSplitter {
 				breakpoints.push(i + 1);
 			}
 		}
-
+		
+		console.log(`SemanticSplitter: Found ${breakpoints.length} breakpoints:`, breakpoints);
 		return breakpoints;
 	}
 
@@ -611,14 +574,24 @@ export class SemanticSplitterWithContext implements INodeType {
 		],
 		properties: [
 			{
+				displayName: 'Summary Prompt',
+				name: 'summaryPrompt',
+				type: 'string',
+				typeOptions: {
+					rows: 3,
+				},
+				default: 'Summarize the following document in 5-7 sentences, focusing on the main topics and concepts that would help retrieve relevant chunks.',
+				description: 'Instructions for generating the global document summary. The full document will be automatically provided.',
+			},
+			{
 				displayName: 'Context Prompt',
 				name: 'contextPrompt',
 				type: 'string',
 				typeOptions: {
 					rows: 4,
 				},
-				default: `Please generate a short succinct context summary to situate this text chunk within the overall document to enhance search retrieval, two or three sentances max. The chunk contains merged content from different document sections, so focus on the main topics and concepts rather than sequential flow. Answer only with the succinct context and nothing else.`,
-				description: 'Instructions for the AI model on how to generate contextual descriptions. The document and chunk will be automatically provided in the prompt structure.',
+				default: 'Using the document summary above, generate a brief contextual description that explains what this specific chunk covers and how it relates to the overall document. Focus on the unique aspects of this chunk. Keep it to 2-3 sentences and answer only with the context.',
+				description: 'Instructions for generating chunk-specific context using the document summary and chunk. The summary and chunk will be automatically provided.',
 			},
 			{
 				displayName: 'Include Labels in Output',
@@ -726,28 +699,6 @@ export class SemanticSplitterWithContext implements INodeType {
 						default: '(?<=[.?!])\\s+',
 						description: 'Regular expression to split text into sentences',
 					},
-					{
-						displayName: 'Use Global Summary',
-						name: 'useGlobalSummary',
-						type: 'boolean',
-						default: false,
-						description: 'Generate a single document summary and reuse it for all chunks (reduces API calls and handles large documents)',
-					},
-					{
-						displayName: 'Global Summary Prompt',
-						name: 'globalSummaryPrompt',
-						type: 'string',
-						typeOptions: {
-							rows: 4,
-						},
-						default: 'Summarize the following document in 5-7 sentences, focusing on the main topics and concepts that would help retrieve relevant chunks.',
-						description: 'Instructions for generating the global document summary',
-						displayOptions: {
-							show: {
-								'/useGlobalSummary': [true],
-							},
-						},
-					},
 				],
 			},
 		],
@@ -766,6 +717,7 @@ export class SemanticSplitterWithContext implements INodeType {
 			itemIndex,
 		)) as Embeddings;
 
+		const summaryPrompt = this.getNodeParameter('summaryPrompt', itemIndex, '') as string;
 		const contextPrompt = this.getNodeParameter('contextPrompt', itemIndex, '') as string;
 		const includeLabels = this.getNodeParameter('includeLabels', itemIndex, false) as boolean;
 
@@ -778,8 +730,6 @@ export class SemanticSplitterWithContext implements INodeType {
 			minChunkSize?: number;
 			maxChunkSize?: number;
 			sentenceSplitRegex?: string;
-			useGlobalSummary?: boolean;
-			globalSummaryPrompt?: string;
 		};
 
 		// Create cache key based on configuration to prevent memory leaks
@@ -792,10 +742,9 @@ export class SemanticSplitterWithContext implements INodeType {
 			minChunkSize: options.minChunkSize,
 			maxChunkSize: options.maxChunkSize,
 			sentenceSplitRegex: options.sentenceSplitRegex,
+			summaryPrompt,
 			contextPrompt,
 			includeLabels,
-			useGlobalSummary: options.useGlobalSummary,
-			globalSummaryPrompt: options.globalSummaryPrompt,
 		});
 
 		// Use cached instance if available to prevent memory leaks on retries
@@ -810,10 +759,9 @@ export class SemanticSplitterWithContext implements INodeType {
 				minChunkSize: options.minChunkSize,
 				maxChunkSize: options.maxChunkSize,
 				sentenceSplitRegex: options.sentenceSplitRegex,
+				summaryPrompt,
 				contextPrompt,
 				includeLabels,
-				useGlobalSummary: options.useGlobalSummary,
-				globalSummaryPrompt: options.globalSummaryPrompt,
 			});
 			
 			// Cache the instance but limit cache size to prevent unbounded growth
