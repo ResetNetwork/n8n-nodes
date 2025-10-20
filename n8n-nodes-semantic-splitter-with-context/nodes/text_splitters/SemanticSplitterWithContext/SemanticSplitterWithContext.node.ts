@@ -93,7 +93,9 @@ class SemanticDoublePassMergingSplitterWithContext extends TextSplitter {
 			);
 		}
 
+		console.log('SemanticSplitter: splitText called with text length:', text.length);
 		const { chunks } = await this._splitTextWithChunks(text);
+		console.log('SemanticSplitter: splitText returning', chunks.length, 'chunks');
 		return chunks.map((c) => c.text);
 	}
 
@@ -137,17 +139,25 @@ class SemanticDoublePassMergingSplitterWithContext extends TextSplitter {
 	}
 
 	override async splitDocuments(documents: Document[]): Promise<Document[]> {
+		console.log('SemanticSplitter: splitDocuments called with', documents.length, 'documents');
 		const splitDocuments: Document[] = [];
 
 		for (const document of documents) {
+			console.log('SemanticSplitter: Processing document with content length:', document.pageContent.length);
 			const chunks = await this.splitText(document.pageContent);
+			console.log('SemanticSplitter: Got', chunks.length, 'chunks from splitText');
 			
-			for (const chunk of chunks) {
+			for (let i = 0; i < chunks.length; i++) {
+				const chunk = chunks[i]!;
+				console.log(`SemanticSplitter: Processing chunk ${i + 1}/${chunks.length}, length:`, chunk.length);
+				
 				// Generate contextual description for this chunk
 				const contextualContent = await this._generateContextualContent(
 					document.pageContent,
 					chunk
 				);
+				
+				console.log(`SemanticSplitter: Generated contextual content for chunk ${i + 1}, final length:`, contextualContent.length);
 				
 				splitDocuments.push(
 					new Document({
@@ -158,15 +168,22 @@ class SemanticDoublePassMergingSplitterWithContext extends TextSplitter {
 			}
 		}
 
+		console.log('SemanticSplitter: splitDocuments returning', splitDocuments.length, 'documents');
 		return splitDocuments;
 	}
 
 	private async _generateContextualContent(wholeDocument: string, chunk: string): Promise<string> {
 		try {
+			// Skip context generation for tiny documents that don't need summarization
+			if (wholeDocument.length < 100) {
+				return this._formatContextualOutput('', chunk);
+			}
+
 			let context: string = '';
 			const documentHash = this._hashDocument(wholeDocument);
 
-			if (this.useGlobalSummary) {
+			// Only use Global Summary for documents large enough to benefit from it
+			if (this.useGlobalSummary && wholeDocument.length > 1000) {
 				// Generate document summary once and cache it
 				let globalSummary = this.documentSummaryCache.get(documentHash);
 				
