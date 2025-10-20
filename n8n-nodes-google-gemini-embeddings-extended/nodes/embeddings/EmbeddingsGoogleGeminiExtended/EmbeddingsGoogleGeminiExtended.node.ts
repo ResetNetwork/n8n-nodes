@@ -13,7 +13,6 @@ import { getConnectionHintNoticeField } from '../../utils/sharedFields';
 class CustomGoogleGenerativeAIEmbeddings {
 	private client: any;
 	private model: string;
-	private outputDimensionality?: number;
 	private taskType?: string;
 	private title?: string;
 	private stripNewLines: boolean;
@@ -22,7 +21,6 @@ class CustomGoogleGenerativeAIEmbeddings {
 		apiKey: string;
 		baseUrl?: string;
 		model: string;
-		outputDimensionality?: number;
 		taskType?: string;
 		title?: string;
 		stripNewLines?: boolean;
@@ -32,15 +30,20 @@ class CustomGoogleGenerativeAIEmbeddings {
 			apiKey: config.apiKey 
 		});
 		this.model = config.model.replace('models/', ''); // Remove models/ prefix
-		console.log('CustomGoogleGenerativeAI: Constructor - original model:', config.model, 'cleaned model:', this.model);
-		this.outputDimensionality = config.outputDimensionality;
+		if (process.env.N8N_NODES_DEBUG === '1' || process.env.N8N_NODES_DEBUG === 'true') {
+			console.log('CustomGoogleGenerativeAI: Constructor - original model:', config.model, 'cleaned model:', this.model);
+		}
 		this.taskType = config.taskType;
 		this.title = config.title;
 		this.stripNewLines = config.stripNewLines !== false;
 	}
 
 	async embedDocuments(documents: string[]): Promise<number[][]> {
-		console.log('CustomGoogleGenerativeAI: embedDocuments called with', documents.length, 'documents');
+		const debugEnabled = process.env.N8N_NODES_DEBUG === '1' || process.env.N8N_NODES_DEBUG === 'true';
+		if (debugEnabled) {
+			console.log('CustomGoogleGenerativeAI: embedDocuments called with', documents.length, 'documents');
+		}
+		
 		const results: number[][] = [];
 
 		for (const document of documents) {
@@ -48,14 +51,10 @@ class CustomGoogleGenerativeAIEmbeddings {
 			
 			const requestConfig: any = {
 				model: this.model,
-				contents: text,  // Try simple string format like the JS documentation
+				contents: text,
 			};
 
-			// Add custom parameters using the official API format
-			if (this.outputDimensionality && this.outputDimensionality > 0) {
-				requestConfig.outputDimensionality = this.outputDimensionality;
-				console.log('CustomGoogleGenerativeAI: Setting outputDimensionality to', this.outputDimensionality);
-			}
+			// Add optional parameters
 			if (this.taskType) {
 				requestConfig.taskType = this.taskType;
 			}
@@ -63,32 +62,41 @@ class CustomGoogleGenerativeAIEmbeddings {
 				requestConfig.title = this.title;
 			}
 
-			console.log('CustomGoogleGenerativeAI: Request config:', JSON.stringify(requestConfig, null, 2));
+			if (debugEnabled) {
+				console.log('CustomGoogleGenerativeAI: Request config:', JSON.stringify(requestConfig, null, 2));
+			}
 
 			try {
 				const response = await this.client.models.embedContent(requestConfig);
-				// Log only response metadata to avoid huge vector logs
-				console.log('CustomGoogleGenerativeAI: API response metadata:', {
-					hasEmbedding: !!response.embedding,
-					hasEmbeddings: !!response.embeddings,
-					embeddingLength: response.embedding?.values?.length,
-					embeddingsCount: response.embeddings?.length,
-					firstEmbeddingLength: response.embeddings?.[0]?.values?.length
-				});
 				
-				// Try both response formats
+				if (debugEnabled) {
+					console.log('CustomGoogleGenerativeAI: API response metadata:', {
+						hasEmbedding: !!response.embedding,
+						hasEmbeddings: !!response.embeddings,
+						embeddingLength: response.embedding?.values?.length,
+						embeddingsCount: response.embeddings?.length,
+						firstEmbeddingLength: response.embeddings?.[0]?.values?.length
+					});
+				}
+				
 				const embedding = response.embedding?.values || response.embeddings?.[0]?.values;
 				
 				if (!embedding || !Array.isArray(embedding)) {
-					console.error('CustomGoogleGenerativeAI: Invalid response structure:', response);
+					if (debugEnabled) {
+						console.error('CustomGoogleGenerativeAI: Invalid response structure:', response);
+					}
 					throw new Error('Invalid embedding response from Google Gemini API');
 				}
 				
-				console.log('CustomGoogleGenerativeAI: Received embedding with', embedding.length, 'dimensions');
-				console.log('CustomGoogleGenerativeAI: Expected dimensions:', this.outputDimensionality || 'default');
+				if (debugEnabled) {
+					console.log('CustomGoogleGenerativeAI: Received embedding with', embedding.length, 'dimensions');
+				}
+				
 				results.push(embedding.map(Number));
 			} catch (error) {
-				console.error('CustomGoogleGenerativeAI: Error embedding document:', error);
+				if (debugEnabled) {
+					console.error('CustomGoogleGenerativeAI: Error embedding document:', error);
+				}
 				throw error;
 			}
 		}
@@ -108,7 +116,7 @@ export class EmbeddingsGoogleGeminiExtended implements INodeType {
 		name: 'embeddingsGoogleGeminiExtended',
 		group: ['transform'],
 		version: 1,
-		description: 'Use Google Gemini Embeddings with extended features like output dimensions support',
+		description: 'Use Google Gemini Embeddings with extended features like task types and titles',
 		defaults: {
 			name: 'Embeddings Google Gemini Extended',
 		},
@@ -143,7 +151,7 @@ export class EmbeddingsGoogleGeminiExtended implements INodeType {
 		properties: [
 			getConnectionHintNoticeField(['ai_vectorStore' as any]),
 			{
-				displayName: 'Each model is using different dimensional density for embeddings. Please make sure to use the same dimensionality for your vector store. The default model is using 768-dimensional embeddings.',
+				displayName: 'Each model uses different dimensional densities for embeddings. Please ensure your vector store matches the model\'s default dimensions.',
 				name: 'notice',
 				type: 'notice',
 				default: '',
@@ -199,14 +207,7 @@ export class EmbeddingsGoogleGeminiExtended implements INodeType {
 						property: 'model',
 					},
 				},
-				default: 'models/text-embedding-004',
-			},
-			{
-				displayName: 'Output Dimensions',
-				name: 'outputDimensions',
-				type: 'number',
-				default: 0,
-				description: 'The number of dimensions for the output embeddings. Set to 0 to use the model default. Only supported by certain models like text-embedding-004 and gemini-embedding-001.',
+				default: 'models/gemini-embedding-001',
 			},
 			{
 				displayName: 'Options',
@@ -296,7 +297,6 @@ export class EmbeddingsGoogleGeminiExtended implements INodeType {
 			itemIndex,
 			'models/gemini-embedding-001',
 		) as string;
-		const outputDimensions = this.getNodeParameter('outputDimensions', itemIndex, 0) as number;
 		const options = this.getNodeParameter('options', itemIndex, {}) as {
 			taskType?: string;
 			title?: string;
@@ -306,25 +306,15 @@ export class EmbeddingsGoogleGeminiExtended implements INodeType {
 
 		const credentials = await this.getCredentials('googlePalmApi');
 
-		// Debug logging
-		this.logger.debug(`Model: ${modelName}, Output Dimensions: ${outputDimensions}`);
-		console.log('GEMINI DEBUG - Model:', modelName, 'Output Dimensions:', outputDimensions, 'Type:', typeof outputDimensions);
-		console.log('GEMINI DEBUG - Will set outputDimensionality:', outputDimensions > 0 ? outputDimensions : 'NO (using default)');
-
 		// Create embeddings configuration
 		const embeddingsConfig = {
 			apiKey: credentials.apiKey as string,
 			...(credentials.host && { baseUrl: credentials.host as string }),
 			model: modelName,
-			...(outputDimensions > 0 && { outputDimensionality: outputDimensions }),
 			...(options.taskType && { taskType: options.taskType as any }),
 			...(options.title && { title: options.title }),
 			stripNewLines: options.stripNewLines !== false,
-			maxConcurrency: 1,
-			maxRetries: 3,
 		};
-		
-		console.log('GEMINI DEBUG - Final config:', JSON.stringify(embeddingsConfig, null, 2));
 
 		// Use custom implementation that properly supports outputDimensionality
 		const embeddings = new CustomGoogleGenerativeAIEmbeddings(embeddingsConfig);
