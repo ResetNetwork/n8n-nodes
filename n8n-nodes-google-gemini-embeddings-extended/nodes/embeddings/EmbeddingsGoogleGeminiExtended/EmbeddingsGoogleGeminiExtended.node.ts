@@ -7,7 +7,6 @@ import {
 
 import { GoogleGenAI } from '@google/genai';
 import { logWrapper } from '../../utils/logWrapper';
-import { getConnectionHintNoticeField } from '../../utils/sharedFields';
 
 // Custom GoogleGenerativeAIEmbeddings using official @google/genai library
 class CustomGoogleGenerativeAIEmbeddings {
@@ -149,7 +148,6 @@ export class EmbeddingsGoogleGeminiExtended implements INodeType {
 			baseURL: '={{ $credentials.host }}',
 		},
 		properties: [
-			getConnectionHintNoticeField(['ai_vectorStore' as any]),
 			{
 				displayName: 'Each model uses different dimensional densities for embeddings. Please ensure your vector store matches the model\'s default dimensions.',
 				name: 'notice',
