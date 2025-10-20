@@ -56,30 +56,30 @@ export class QueryRetrieverRerank implements INodeType {
 			{
 				displayName: 'Vector',
 				maxConnections: 1,
-				type: 'aiVectorStore' as any,
+				type: NodeConnectionType.AiVectorStore,
 			},
 			{
 				displayName: 'LLM',
 				maxConnections: 1,
-				type: 'aiLanguageModel' as any,
+				type: NodeConnectionType.AiLanguageModel,
 			},
 			{
 				displayName: 'Embed',
 				maxConnections: 1,
-				type: 'aiEmbedding' as any,
+				type: NodeConnectionType.AiEmbedding,
 				required: true,
 			},
 			{
 				displayName: 'Debug',
 				maxConnections: 1,
-				type: 'aiMemory' as any,
+				type: NodeConnectionType.AiMemory,
 				required: false,
 			},
 		],
-		outputs: ['aiTool' as any],
+		outputs: [NodeConnectionType.AiTool],
 		outputNames: ['Tool'],
 		properties: [
-			getConnectionHintNoticeField(['aiAgent']),
+			getConnectionHintNoticeField([NodeConnectionType.AiAgent]),
 			{
 				displayName: 'Tool Options',
 				name: 'toolOptions',
@@ -305,10 +305,10 @@ export class QueryRetrieverRerank implements INodeType {
 		};
 
 		// Get the vector store and language model from input connections
-		const vectorStore = (await this.getInputConnectionData('aiVectorStore' as any, itemIndex)) as VectorStore;
-		const model = (await this.getInputConnectionData('aiLanguageModel' as any, 0)) as BaseLanguageModel;
-		const rerankingEmbeddings = (await this.getInputConnectionData('aiEmbedding' as any, 0)) as Embeddings;
-		const memory = (await this.getInputConnectionData('aiMemory' as any, 0)) as BaseMemory | null;
+		const vectorStore = (await this.getInputConnectionData(NodeConnectionType.AiVectorStore, itemIndex)) as VectorStore;
+		const model = (await this.getInputConnectionData(NodeConnectionType.AiLanguageModel, 0)) as BaseLanguageModel;
+		const rerankingEmbeddings = (await this.getInputConnectionData(NodeConnectionType.AiEmbedding, 0)) as Embeddings;
+		const memory = (await this.getInputConnectionData(NodeConnectionType.AiMemory, 0)) as BaseMemory | null;
 
 		if (!vectorStore) {
 			throw new Error('Vector Store input is required');
