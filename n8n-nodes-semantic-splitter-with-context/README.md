@@ -1,27 +1,25 @@
 # n8n-nodes-semantic-splitter-with-context
 
-A custom n8n node that provides semantic text splitting with contextual enhancement using n8n's built-in LangChain integration. This node combines semantic double-pass merging with AI-generated contextual descriptions for improved retrieval performance. **Now with zero external dependencies** - uses n8n's built-in LangChain modules for seamless integration.
+A production-ready n8n node that provides semantic text splitting with intelligent contextual enhancement. This node combines semantic double-pass merging with a Global Summary approach for optimal token efficiency and retrieval performance. **Zero external dependencies** - uses n8n's built-in LangChain modules for seamless integration.
 
 ## Features
 
-- **Semantic Double-Pass Merging**: Uses embeddings to identify semantic boundaries and merges similar adjacent chunks implementing the technique described in [Konrad Rucinski post](https://bitpeak.com/chunking-methods-in-rag-methods-comparison/)
-- **Contextual Enhancement**: Generates contextual descriptions for each chunk using a chat model implementing the technique described in [Anthropic's post](https://www.anthropic.com/news/contextual-retrieval) and inspired by Jim Le's [workflow](https://community.n8n.io/t/building-the-ultimate-rag-setup-with-contextual-summaries-sparse-vectors-and-reranking/54861)
-- **Customizable Prompts**: User-defined prompts for context generation
+- **Semantic Double-Pass Merging**: Uses embeddings to identify semantic boundaries and intelligently merges similar adjacent chunks
+- **Global Summary Approach**: Generates one document summary and uses it to create specific context for each chunk (dramatically reduces API calls)
+- **Dual Customizable Prompts**: Separate user-defined prompts for document summarization and chunk context generation
 - **Multiple Threshold Methods**: Percentile, standard deviation, interquartile, and gradient-based breakpoint detection
 - **Enhanced Size Constraints**: Sentence-boundary-aware splitting and merging with intelligent size management
-- **Flexible Sentence Splitting**: Customizable regex patterns with safety fallbacks for invalid expressions
-- **Global Summary**: Generate one document-level summary and reuse it for all chunks (dramatically reduces API calls)
-- **Memory Leak Protection**: Instance caching and payload size validation prevent infinite retry loops
-- **Production Ready**: Comprehensive error handling and resource management for stable operation
+- **Flexible Sentence Splitting**: Customizable regex patterns with safety fallbacks
+- **Memory Leak Protection**: Instance and document caching prevent infinite retry loops and memory exhaustion
+- **Production Ready**: Comprehensive error handling, payload validation, and visual feedback integration
 
 ## How It Works
 
 1. **Document Input**: Receives documents from document loaders
-2. **Semantic Splitting**: Splits text by using semantic similarity analysis with intelligent merging
-3. **Context Generation**: For each chunk, generates a contextual description using the chat model
-   - Option 1: Generate specific context per chunk using full document
-   - Option 2: Generate one global summary and reuse for all chunks (efficient for large documents)
-4. **Output Format**: Returns chunks in the format: `[context]\n\n[chunk]`
+2. **Global Summary Generation**: Creates a single document-level summary (1 API call per document)
+3. **Semantic Splitting**: Splits text using semantic similarity analysis with intelligent double-pass merging
+4. **Context Generation**: For each chunk, generates specific contextual description using the global summary + chunk (1 API call per chunk)
+5. **Output Format**: Returns chunks in the format: `[chunk-specific context]\n\n[chunk content]`
 
 ## Installation
 
@@ -81,15 +79,21 @@ n8n start
    - **Embeddings**: For semantic similarity analysis
 4. Configure the context prompt and options as needed
 
-### Context Prompt
+### Dual Prompt Configuration
 
-The context prompt is the instruction given to the AI model for generating contextual descriptions. The default prompt is:
+The node uses two separate prompts for optimal contextual enhancement:
 
+**Summary Prompt** (for document-level summary):
 ```
-Please generate a short succinct context summary to situate this text chunk within the overall document to enhance search retrieval, two or three sentences max. The chunk contains merged content from different document sections, so focus on the main topics and concepts rather than sequential flow. Answer only with the succinct context and nothing else.
+Summarize the following document in 5-7 sentences, focusing on the main topics and concepts that would help retrieve relevant chunks.
 ```
 
-The document and chunk content are automatically provided to the AI model in a structured format. You only need to customize the instructions for how the context should be generated.
+**Context Prompt** (for chunk-specific context):
+```
+Using the document summary above, generate a brief contextual description that explains what this specific chunk covers and how it relates to the overall document. Focus on the unique aspects of this chunk. Keep it to 2-3 sentences and answer only with the context.
+```
+
+Both prompts are fully customizable. The document summary and chunk content are automatically provided in a structured format.
 
 ### Output Format
 
@@ -100,16 +104,18 @@ You can choose whether to include labels in the output:
 
 ### Configuration Options
 
-#### Basic Options
+#### Prompt Configuration
+- **Summary Prompt**: Instructions for generating the global document summary
+- **Context Prompt**: Instructions for generating chunk-specific context using the summary
+- **Include Labels**: Whether to include "Context:" and "Chunk:" labels in the output
+
+#### Splitting Options
 - **Buffer Size**: Number of sentences to combine for context when creating embeddings (default: 1)
 - **Breakpoint Threshold Type**: Method for determining chunk boundaries (percentile, standard deviation, interquartile, gradient)
+- **Number of Chunks**: Target number of chunks to create (overrides threshold settings if set)
 - **Second Pass Threshold**: Similarity threshold for merging chunks in the second pass (0-1, default: 0.8)
 - **Min/Max Chunk Size**: Size constraints for generated chunks (default: 100-2000 characters)
 - **Sentence Split Regex**: Pattern for splitting text into sentences (default: `(?<=[.?!])\\s+`)
-
-#### Advanced Options
-- **Use Global Summary**: Generate a single document summary and reuse it for all chunks (dramatically reduces API calls)
-- **Global Summary Prompt**: Custom instruction for generating the global summary (default: document overview in 5-7 sentences)
 
 ## Example Workflow
 
@@ -121,20 +127,20 @@ You can choose whether to include labels in the output:
 
 ## Output Format
 
-Each chunk is enhanced with contextual information. With labels disabled (default):
+Each chunk is enhanced with contextual information generated using the Global Summary approach. With labels disabled (default):
 
 ```
-This section discusses the company's financial performance in Q2 2023.
+Parents of Orange County teen Adam Raine and 153 other families urged Governor Gavin Newsom to sign AB 56 and AB 1064 after their children died by suicide linked to AI chatbots or harmful social media content.
 
-The company's revenue grew by 3% over the previous quarter, reaching $314 million. This growth was primarily attributed to our SaaS offerings, which saw a 15% increase in subscriptions.
+SAN FRANCISCO, October 6, 2025 — The parents of Orange County teenager Adam Raine, who died by suicide after using an artificial intelligence (AI) chatbot, and 153 other parents whose children died related to their use of social media or AI, today called on Governor Gavin Newsom to sign into law two bills...
 ```
 
 With labels enabled:
 
 ```
-Context: This section discusses the company's financial performance in Q2 2023.
+Context: Parents of Orange County teen Adam Raine and 153 other families urged Governor Gavin Newsom to sign AB 56 and AB 1064 after their children died by suicide linked to AI chatbots or harmful social media content.
 
-Chunk: The company's revenue grew by 3% over the previous quarter, reaching $314 million. This growth was primarily attributed to our SaaS offerings, which saw a 15% increase in subscriptions.
+Chunk: SAN FRANCISCO, October 6, 2025 — The parents of Orange County teenager Adam Raine, who died by suicide after using an artificial intelligence (AI) chatbot, and 153 other parents whose children died related to their use of social media or AI, today called on Governor Gavin Newsom to sign into law two bills...
 ```
 
 ## Benefits
@@ -161,23 +167,25 @@ Chunk: The company's revenue grew by 3% over the previous quarter, reaching $314
 
 ## Tips
 
-- **For Large Documents**: Enable "Use Global Summary" to reduce token usage and prevent payload errors
-- **For Token Efficiency**: Global Summary can reduce API calls from 100+ to 1 per document
-- **For Debugging**: Set `N8N_NODES_DEBUG=1` to see detailed debug logs during development
-- **For Production**: Monitor document sizes and consider pre-processing very large files
+- **Token Efficiency**: Global Summary approach reduces API calls from N to 1+N (1 summary + N contexts vs N full-document contexts)
+- **Prompt Customization**: Adjust Summary Prompt for better document overviews, Context Prompt for better chunk descriptions
+- **Chunk Control**: Use `numberOfChunks` for predictable output size, or threshold methods for semantic-driven splitting
+- **Large Documents**: Node handles up to 10MB documents with automatic payload size validation
+- **Debugging**: Set `N8N_NODES_DEBUG=1` to see detailed debug logs during development
 
 ## Changelog
 
-### v0.5.1 - Production Stability & Global Summary
-- ✅ **New**: Global Summary option with document-level caching (reduces API calls from N to 1 per document)
-- ✅ **New**: Enhanced size constraints with sentence-boundary awareness  
-- ✅ **New**: Instance caching to prevent memory leaks during retries
+### v0.6.0 - Global Summary Only (Breaking Change)
+- 🔥 **Breaking**: Simplified to Global Summary approach only (no legacy modes)
+- ✅ **New**: Dual prompt configuration (separate Summary and Context prompts)
+- ✅ **New**: Enhanced size constraints with sentence-boundary awareness
+- ✅ **New**: Instance and document caching to prevent memory leaks
 - ✅ **New**: Payload size validation to prevent API errors
+- ✅ **Improved**: Visual feedback integration matching n8n's built-in nodes
 - ✅ **Improved**: Chat model response normalization (handles string/array/BaseMessage)
-- ✅ **Improved**: Regex safety with automatic fallbacks
-- ✅ **Fixed**: Constructor options wiring (all user settings now work correctly)
+- ✅ **Improved**: Token efficiency (1+N API calls vs N full-document calls)
 - ✅ **Fixed**: Connection type compatibility with n8n runtime
-- ✅ **Fixed**: Endless summary generation bug (Global Summary now works correctly)
+- ✅ **Fixed**: Endless summary generation bug
 
 ### v0.4.1 - Stability Improvements
 - ✅ **Fixed**: TypeScript compatibility with newer n8n versions
