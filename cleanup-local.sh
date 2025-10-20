@@ -5,7 +5,7 @@
 
 set -e  # Exit on error
 
-echo "🧹 Cleaning up n8n custom nodes links and SSE test server..."
+echo "🧹 Cleaning up n8n custom nodes links, symlinks and old builds..."
 
 # Get the current directory
 ROOT_DIR=$(pwd)
@@ -42,17 +42,23 @@ NODE_DIRS=(
 # n8n custom directory
 N8N_CUSTOM_DIR="$HOME/.n8n/custom"
 
-# Unlink from n8n custom directory
+# Unlink from n8n custom directory and remove symlinks
 if [ -d "$N8N_CUSTOM_DIR" ]; then
-    echo "📦 Unlinking nodes from n8n..."
+    echo "📦 Unlinking nodes from n8n and removing symlinks..."
     cd "$N8N_CUSTOM_DIR"
-    
+
     for dir in "${NODE_DIRS[@]}"; do
         if [ -d "$ROOT_DIR/$dir" ]; then
-            # Extract package name from package.json
             PACKAGE_NAME=$(cd "$ROOT_DIR/$dir" && node -p "require('./package.json').name")
-            echo "  Unlinking $PACKAGE_NAME..."
-            npm unlink "$PACKAGE_NAME" 2>/dev/null || echo "    Already unlinked or not found"
+            if [ -n "$PACKAGE_NAME" ]; then
+                echo "  Unlinking $PACKAGE_NAME..."
+                npm unlink "$PACKAGE_NAME" 2>/dev/null || true
+                # Remove direct symlink if it exists
+                if [ -L "node_modules/$PACKAGE_NAME" ] || [ -d "node_modules/$PACKAGE_NAME" ]; then
+                    rm -rf "node_modules/$PACKAGE_NAME"
+                    echo "    Removed symlink node_modules/$PACKAGE_NAME"
+                fi
+            fi
         fi
     done
 else
@@ -62,13 +68,15 @@ fi
 # Return to root directory
 cd "$ROOT_DIR"
 
-# Remove global npm links
-echo "🔗 Removing global npm links..."
+# Remove global npm links and local builds
+echo "🔗 Removing global npm links and local dist builds..."
 for dir in "${NODE_DIRS[@]}"; do
-    if [ -d "$dir" ]; then
-        echo "  Unlinking $dir..."
+    if [ -d "$ROOT_DIR/$dir" ]; then
+        echo "  Cleaning $dir..."
         cd "$ROOT_DIR/$dir"
-        npm unlink 2>/dev/null || echo "    Already unlinked or not found"
+        npm unlink 2>/dev/null || true
+        # Remove dist/ and build logs to avoid stale code
+        rm -rf dist build.log 2>/dev/null || true
     fi
 done
 
@@ -78,5 +86,4 @@ cd "$ROOT_DIR"
 echo ""
 echo "✅ Cleanup complete!"
 echo ""
-echo "📝 Note: The built files in dist/ directories are preserved."
-echo "   Run 'npm run clean' in each node directory to remove them if needed." 
+echo "📝 Note: All dist/ directories and build logs were removed to prevent stale builds."
