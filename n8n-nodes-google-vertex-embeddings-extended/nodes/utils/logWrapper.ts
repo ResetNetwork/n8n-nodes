@@ -47,7 +47,7 @@ export function logWrapper<T extends object>(originalInstance: T, executeFunctio
 				if (prop === 'embedDocuments' && 'embedDocuments' in target) {
 					return async (documents: string[]): Promise<number[][]> => {
 						console.log('VertexEmbeddingsLogWrapper: embedDocuments intercepted, docs:', documents?.length || 0);
-                        const connectionType = 'aiEmbedding' as any;
+                        const connectionType = 'ai_embedding';
 
 						// Log input data
 						const { index } = executeFunctions.addInputData(connectionType, [
@@ -80,7 +80,7 @@ export function logWrapper<T extends object>(originalInstance: T, executeFunctio
 				if (prop === 'embedQuery' && 'embedQuery' in target) {
 					return async (query: string): Promise<number[]> => {
 						console.log('VertexEmbeddingsLogWrapper: embedQuery intercepted, query length:', query?.length || 0);
-                        const connectionType = 'aiEmbedding' as any;
+                        const connectionType = 'ai_embedding';
 
 						// Log input data
 						const { index } = executeFunctions.addInputData(connectionType, [

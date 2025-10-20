@@ -1,5 +1,4 @@
 import {
-	NodeConnectionType,
 	type INodeType,
 	type INodeTypeDescription,
 	type ISupplyDataFunctions,
@@ -42,14 +41,14 @@ export class EmbeddingsGoogleGeminiExtended implements INodeType {
 		// This is a sub-node, it has no inputs
 		inputs: [],
 		// And it supplies data to the root node
-		outputs: [NodeConnectionType.AiEmbedding],
+		outputs: ['ai_embedding' as any],
 		outputNames: ['Embeddings'],
 		requestDefaults: {
 			ignoreHttpStatusErrors: true,
 			baseURL: '={{ $credentials.host }}',
 		},
 		properties: [
-			getConnectionHintNoticeField([NodeConnectionType.AiVectorStore]),
+			getConnectionHintNoticeField(['ai_vectorStore' as any]),
 			{
 				displayName: 'Each model is using different dimensional density for embeddings. Please make sure to use the same dimensionality for your vector store. The default model is using 768-dimensional embeddings.',
 				name: 'notice',

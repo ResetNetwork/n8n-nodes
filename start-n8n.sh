@@ -3,7 +3,16 @@
 # start-n8n.sh - Start n8n with custom nodes
 # This script checks if nodes are linked and starts n8n
 
+# Source NVM to ensure we use the correct Node.js version
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+
+# Use the default Node.js version (should be 22.20.0)
+nvm use default
+
 echo "🚀 Starting n8n with custom nodes and SSE test server..."
+echo "📋 Using Node.js version: $(node --version)"
 
 # Get the script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
