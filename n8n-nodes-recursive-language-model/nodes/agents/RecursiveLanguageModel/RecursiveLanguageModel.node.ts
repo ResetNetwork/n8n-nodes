@@ -1,19 +1,11 @@
 import {
-	ISupplyDataFunctions,
+	IExecuteFunctions,
+	INodeExecutionData,
 	INodeType,
 	INodeTypeDescription,
-	SupplyData,
+	NodeConnectionType,
 } from 'n8n-workflow';
 
-// Define connection types as constants to match runtime behavior
-const NodeConnectionType = {
-	AiLanguageModel: 'ai_languageModel',
-	AiTool: 'ai_tool',
-	AiMemory: 'ai_memory',
-	Main: 'main',
-} as const;
-
-import { DynamicTool } from '@langchain/core/tools';
 import type { BaseLanguageModel } from '@langchain/core/language_models/base';
 import type { StructuredToolInterface } from '@langchain/core/tools';
 import type { BaseMemory } from '@langchain/core/memory';
@@ -23,18 +15,19 @@ import type { RlmConfig, RlmContext } from './types';
 
 export class RecursiveLanguageModel implements INodeType {
 	description: INodeTypeDescription = {
-		displayName: 'Recursive Language Model',
-		name: 'recursiveLanguageModel',
+		displayName: 'Recursive Language Model Agent',
+		name: 'recursiveLanguageModelAgent',
+		icon: 'fa:code-branch',
 		group: ['transform'],
 		version: 1,
-		description: 'AI tool that processes unbounded context through recursive LM calls in a REPL environment',
+		description: 'AI agent that processes unbounded context through recursive LM calls in a REPL environment',
 		defaults: {
-			name: 'Recursive Language Model',
+			name: 'RLM Agent',
 		},
 		codex: {
 			categories: ['AI'],
 			subcategories: {
-				AI: ['Tools'],
+				AI: ['Agents', 'Chains'],
 			},
 			resources: {
 				primaryDocumentation: [
@@ -64,50 +57,16 @@ export class RecursiveLanguageModel implements INodeType {
 				type: NodeConnectionType.AiMemory,
 				required: false,
 			},
-			{
-				displayName: 'Context',
-				maxConnections: 1,
-				type: NodeConnectionType.Main,
-				required: false,
-			},
+			NodeConnectionType.Main,
 		],
-		outputs: [NodeConnectionType.AiTool],
-		outputNames: ['Tool'],
+		outputs: [NodeConnectionType.Main],
+		outputNames: ['Response'],
 		properties: [
 			{
-				displayName: 'This node implements Recursive Language Models (RLM) - a pattern where LLMs process large contexts by recursively calling themselves within a REPL environment. Read more at https://alexzhang13.github.io/blog/2025/rlm/',
+				displayName: 'This node implements Recursive Language Models (RLM) - an AI agent that processes large contexts by recursively calling itself within a REPL environment. Can be called from other agents via Execute Sub-workflow. Read more at https://alexzhang13.github.io/blog/2025/rlm/',
 				name: 'notice',
 				type: 'notice',
 				default: '',
-			},
-			{
-				displayName: 'Tool Options',
-				name: 'toolOptions',
-				placeholder: 'Add Option',
-				description: 'Configure the AI tool name and description',
-				type: 'collection',
-				default: {},
-				options: [
-					{
-						displayName: 'Tool Name',
-						name: 'toolName',
-						type: 'string',
-						default: 'recursive_context_processor',
-						placeholder: 'e.g., document_analyzer',
-						description: 'Name for the AI tool. Must be valid identifier (lowercase, underscores).',
-					},
-					{
-						displayName: 'Tool Description',
-						name: 'description',
-						type: 'string',
-						default: 'Process and answer questions about large contexts using recursive analysis',
-						placeholder: 'Describe what this tool does...',
-						description: 'Description shown to the AI agent. Be specific about what data/context this tool processes.',
-						typeOptions: {
-							rows: 3,
-						},
-					},
-				],
 			},
 			{
 				displayName: 'REPL Options',
@@ -221,25 +180,24 @@ export class RecursiveLanguageModel implements INodeType {
 		],
 	};
 
-	async supplyData(this: ISupplyDataFunctions, itemIndex: number): Promise<SupplyData> {
-		// Get parameters
-		const toolOptions = this.getNodeParameter('toolOptions', itemIndex, {}) as {
-			toolName?: string;
-			description?: string;
-		};
-		const replOptions = this.getNodeParameter('replOptions', itemIndex, {}) as {
+	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
+		const items = this.getInputData();
+		const returnData: INodeExecutionData[] = [];
+
+		// Get parameters (same for all items)
+		const replOptions = this.getNodeParameter('replOptions', 0, {}) as {
 			maxIterations?: number;
 			outputTruncationLength?: number;
 			iterationTimeout?: number;
 		};
-		const recursionOptions = this.getNodeParameter('recursionOptions', itemIndex, {}) as {
+		const recursionOptions = this.getNodeParameter('recursionOptions', 0, {}) as {
 			maxDepth?: number;
 		};
-		const contextOptions = this.getNodeParameter('contextOptions', itemIndex, {}) as {
+		const contextOptions = this.getNodeParameter('contextOptions', 0, {}) as {
 			maxContextSize?: number;
 			contextVarName?: string;
 		};
-		const options = this.getNodeParameter('options', itemIndex, {}) as {
+		const options = this.getNodeParameter('options', 0, {}) as {
 			debugging?: boolean;
 		};
 
@@ -276,26 +234,6 @@ export class RecursiveLanguageModel implements INodeType {
 			0,
 		)) as BaseMemory | null;
 
-		// Get pre-loaded context from main input if provided
-		let preloadedContext: any = undefined;
-		try {
-			const items = this.getInputData();
-			if (items && items.length > 0) {
-				// Use the first item as context
-				const contextItem = items[0];
-				
-				// Try to extract meaningful context from the item
-				if (contextItem.json && Object.keys(contextItem.json).length > 0) {
-					preloadedContext = contextItem.json;
-				} else if (contextItem.binary) {
-					// Handle binary data if present
-					preloadedContext = { binary: 'Binary data present - access via binary property' };
-				}
-			}
-		} catch (e) {
-			// No context input, that's OK
-		}
-
 		// Build configuration
 		const config: RlmConfig = {
 			maxIterations: replOptions.maxIterations || 20,
@@ -304,55 +242,85 @@ export class RecursiveLanguageModel implements INodeType {
 			outputTruncationLength: replOptions.outputTruncationLength || 5000,
 			iterationTimeout: replOptions.iterationTimeout || 60000,
 			debugging: options.debugging || false,
-			toolName: toolOptions.toolName || 'recursive_context_processor',
-			toolDescription: toolOptions.description || 'Process and answer questions about large contexts using recursive analysis',
+			toolName: 'rlm_agent',
+			toolDescription: 'Recursive Language Model Agent',
 		};
 
-		// Build RLM context
-		const rlmContext: RlmContext = {
-			model,
-			tools: tools.length > 0 ? tools : undefined,
-			memory: memory || undefined,
-			config,
-			preloadedContext,
-		};
-
-		// Create the DynamicTool
-		const tool = new DynamicTool({
-			name: config.toolName,
-			description: config.toolDescription,
-			func: async (input: string) => {
-				try {
-					// Create executor for this query
-					const executor = new RecursiveLmExecutor(rlmContext);
-					
-					// Execute RLM
-					const result = await executor.execute(input);
-					
-					// Return answer with metadata if debugging
-					if (config.debugging && result.metadata.executionHistory) {
-						return JSON.stringify({
-							answer: result.answer,
-							metadata: {
-								iterations: result.metadata.iterations,
-								recursiveCalls: result.metadata.recursiveCalls,
-								totalTime: result.metadata.totalTime,
-								hitLimit: result.metadata.hitLimit,
-							},
-						}, null, 2);
+		// Process each item
+		for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
+			try {
+				const item = items[itemIndex];
+				
+				// Extract query from item
+				// Expected format: { query: "question...", context: optional }
+				const query = item.json.query as string || item.json.input as string || JSON.stringify(item.json);
+				
+				// Get pre-loaded context from item if provided
+				let preloadedContext: any = undefined;
+				if (item.json.context) {
+					preloadedContext = item.json.context;
+				} else if (Object.keys(item.json).length > 0) {
+					// Use entire item json as context (excluding query/input)
+					const { query: _, input: __, ...rest } = item.json;
+					if (Object.keys(rest).length > 0) {
+						preloadedContext = rest;
 					}
-					
-					return result.answer;
-				} catch (error) {
-					const errorMessage = (error as Error).message;
-					throw new Error(`RLM execution failed: ${errorMessage}`);
 				}
-			},
-		});
 
-		return {
-			response: tool,
-		};
+				// Build RLM context for this item
+				const rlmContext: RlmContext = {
+					model,
+					tools: tools.length > 0 ? tools : undefined,
+					memory: memory || undefined,
+					config,
+					preloadedContext,
+				};
+
+				// Create executor and execute
+				const executor = new RecursiveLmExecutor(rlmContext);
+				const result = await executor.execute(query);
+
+				// Build output item
+				const outputItem: INodeExecutionData = {
+					json: {
+						query,
+						answer: result.answer,
+						metadata: {
+							iterations: result.metadata.iterations,
+							recursiveCalls: result.metadata.recursiveCalls,
+							totalTime: result.metadata.totalTime,
+							hitLimit: result.metadata.hitLimit,
+						},
+					},
+					pairedItem: {
+						item: itemIndex,
+					},
+				};
+
+				// Add execution history if debugging
+				if (config.debugging && result.metadata.executionHistory) {
+					outputItem.json.executionHistory = result.metadata.executionHistory;
+				}
+
+				returnData.push(outputItem);
+
+			} catch (error) {
+				if (this.continueOnFail()) {
+					returnData.push({
+						json: {
+							error: (error as Error).message,
+						},
+						pairedItem: {
+							item: itemIndex,
+						},
+					});
+					continue;
+				}
+				throw error;
+			}
+		}
+
+		return [returnData];
 	}
 }
 

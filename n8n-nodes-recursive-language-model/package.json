@@ -1,7 +1,7 @@
 {
   "name": "n8n-nodes-recursive-language-model",
   "version": "0.1.0",
-  "description": "n8n community tool node implementing Recursive Language Models (RLM) for processing unbounded context through REPL environments",
+  "description": "n8n community agent node implementing Recursive Language Models (RLM) for processing unbounded context through REPL environments",
   "keywords": [
     "n8n-community-node-package",
     "rlm",
@@ -10,7 +10,7 @@
     "repl",
     "ai",
     "langchain",
-    "tool"
+    "agent"
   ],
   "license": "MIT",
   "homepage": "https://github.com/ResetNetwork/n8n-nodes#readme",
@@ -31,7 +31,7 @@
   },
   "main": "index.js",
   "scripts": {
-    "build": "tsc && mkdir -p dist/nodes/tools/RecursiveLanguageModel",
+    "build": "tsc && mkdir -p dist/nodes/agents/RecursiveLanguageModel",
     "dev": "tsc --watch",
     "format": "prettier nodes --write",
     "lint": "eslint nodes",
@@ -44,7 +44,7 @@
   "n8n": {
     "n8nNodesApiVersion": 1,
     "nodes": [
-      "dist/nodes/tools/RecursiveLanguageModel/RecursiveLanguageModel.node.js"
+      "dist/nodes/agents/RecursiveLanguageModel/RecursiveLanguageModel.node.js"
     ]
   },
   "devDependencies": {

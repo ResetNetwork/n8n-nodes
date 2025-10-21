@@ -25,66 +25,132 @@ Or install directly in n8n:
 2. Select **Install**
 3. Enter `n8n-nodes-recursive-language-model`
 
-## Node: Recursive Language Model
+## Node: Recursive Language Model Agent
 
-An AI Tool node that acts like an agent internally but outputs as a tool to parent agents.
+An AI Agent node that processes queries through a REPL environment with recursive LM capabilities.
 
 ### Inputs
 
 1. **LLM** (required) - Chat model for root LM and recursive calls
 2. **Tools** (optional, multiple) - AI tools for retrieval (vector search, query tools, etc.)
 3. **Memory** (optional) - For storing execution traces
-4. **Context** (optional) - Pre-load context data (< 50MB recommended)
+4. **Main** (optional) - Input items with queries to process
+
+### Outputs
+
+**Main** - Returns items with `{ query, answer, metadata }`
 
 ### How It Works
 
 ```
-User Query → Parent Agent → RLM Tool
-                               ├─ Root LM writes JavaScript code
-                               ├─ Code executes in REPL sandbox
-                               ├─ Can call connected tools: vectorSearch()
-                               ├─ Can recurse: rlm(subQuery, subContext)
-                               └─ Returns FINAL(answer)
+Input Item { query: "..." } → RLM Agent
+                                 ├─ Root LM writes JavaScript code
+                                 ├─ Code executes in REPL sandbox
+                                 ├─ Can call connected tools: vectorSearch()
+                                 ├─ Can recurse: rlm(subQuery, subContext)
+                                 └─ Returns FINAL(answer)
+                                      ↓
+Output Item { query, answer, metadata }
+```
+
+### Calling from Other Agents
+
+Since this is an agent node (not a tool), other agents can call it via the **Execute Sub-workflow** tool:
+
+```
+[Main Agent] → uses Execute Sub-workflow tool
+                      ↓
+               [RLM Agent workflow]
+                      ↓
+               Returns answer
 ```
 
 ### Example Workflows
 
-#### Pattern 1: Post-Retrieval Synthesis
+#### Pattern 1: Standalone RLM Agent
 
 ```
-[Vector Store] → [Query Retriever Tool] → [RLM Tool] → [AI Agent]
-                                              ↑
-                              [Chat Model] ──┘
+[Manual Trigger] → [RLM Agent] ← [Chat Model]
+                       ↑             ↓
+           [Vector Store Tool] → [Output]
 ```
 
-The RLM receives many documents from retrieval and recursively processes them to avoid context rot.
+Direct use of the RLM agent to process queries with connected tools.
 
-#### Pattern 2: Iterative Retrieval
-
-```
-[Vector Store] ──┐
-                 ├─ [Query Tool] ──┐
-[Chat Model] ────┼──────────────────┼─→ [RLM Tool] → [AI Agent]
-                 └─ [Keyword Tool] ─┘
-```
-
-The RLM can call tools multiple times with refined queries based on what it learns.
-
-#### Pattern 3: Direct Context Processing
+#### Pattern 2: Agent-to-Agent via Sub-workflow
 
 ```
-[File Reader] → [RLM Tool] → [AI Agent]
-                    ↑
-    [Chat Model] ──┘
+Workflow 1 (RLM Agent):
+[Chat Trigger] → [RLM Agent] ← [Chat Model + Tools]
+
+Workflow 2 (Main Agent):
+[Chat Trigger] → [Main Agent] ← [Chat Model]
+                      ↑
+                      └─ [Execute Sub-workflow Tool] → points to Workflow 1
 ```
 
-For smaller contexts, the RLM processes them directly using code.
+Main agent delegates complex context processing to RLM agent via sub-workflow.
+
+#### Pattern 3: Post-Retrieval Synthesis
+
+```
+[Vector Store] → [Query Tool] → get 50 docs
+                                    ↓
+[Format as JSON] → [RLM Agent] ← processes recursively
+                       ↓
+                   [Output]
+```
+
+Use RLM to synthesize many retrieved documents without context rot.
+
+#### Pattern 4: Batch Processing
+
+```
+[Spreadsheet] → multiple rows with queries
+                       ↓
+                 [RLM Agent] ← processes each query
+                       ↓
+             [Save to Database]
+```
+
+Process multiple queries in batch, each with its own context.
+
+### Input Format
+
+Items passed to the RLM agent should have this structure:
+
+```json
+{
+  "query": "What are the main findings?",
+  "context": {
+    "optional": "pre-loaded context data"
+  }
+}
+```
+
+Or simply:
+```json
+{
+  "input": "Your question here"
+}
+```
+
+### Output Format
+
+```json
+{
+  "query": "What are the main findings?",
+  "answer": "The main findings are...",
+  "metadata": {
+    "iterations": 5,
+    "recursiveCalls": 2,
+    "totalTime": 12450,
+    "hitLimit": false
+  }
+}
+```
 
 ### Configuration
-
-#### Tool Options
-- **Tool Name**: Identifier for the tool (e.g., `document_analyzer`)
-- **Tool Description**: What the tool does (shown to parent agent)
 
 #### REPL Options
 - **Max Iterations**: Safety limit for code execution loops (default: 20)
@@ -164,13 +230,14 @@ FINAL(answer);
 
 ## Comparison to Standard Agent
 
-| Feature | Standard Agent | RLM Tool |
-|---------|---------------|----------|
+| Feature | Standard n8n Agent | RLM Agent |
+|---------|-------------------|-----------|
 | Tool calling | JSON function calling | Executable code |
-| Iteration | Predefined loop | Code-driven REPL |
-| Context | All in LM window | Stored in variables |
-| Recursion | None | Built-in rlm() |
-| Connected to | Chat nodes | Other agents (as tool) |
+| Iteration | Predefined agent loop | Code-driven REPL loop |
+| Context handling | All in LM window | Stored in REPL variables |
+| Recursion | None | Built-in rlm() function |
+| Output | Chat responses | Structured JSON data |
+| Called by | Chat nodes | Other agents (via sub-workflow) |
 
 ## Key Benefits
 
