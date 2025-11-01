@@ -1,120 +1,151 @@
-import { ISupplyDataFunctions, NodeOperationError } from 'n8n-workflow';
+import { ISupplyDataFunctions, NodeOperationError } from "n8n-workflow";
 
 async function callMethodAsync<T>(
-	this: T,
-	parameters: {
-		executeFunctions: ISupplyDataFunctions;
-		connectionType: string;
-		currentNodeRunIndex: number;
-		method: (...args: any[]) => Promise<unknown>;
-		arguments: unknown[];
-	},
+  this: T,
+  parameters: {
+    executeFunctions: ISupplyDataFunctions;
+    connectionType: string;
+    currentNodeRunIndex: number;
+    method: (...args: any[]) => Promise<unknown>;
+    arguments: unknown[];
+  },
 ): Promise<unknown> {
-	try {
-		return await parameters.method.call(this, ...parameters.arguments);
-	} catch (error) {
-		const connectedNode = parameters.executeFunctions.getNode();
-		throw new NodeOperationError(connectedNode, error as Error);
-	}
+  try {
+    return await parameters.method.call(this, ...parameters.arguments);
+  } catch (error) {
+    const connectedNode = parameters.executeFunctions.getNode();
+    throw new NodeOperationError(connectedNode, error as Error);
+  }
 }
 
-function logAiEvent(executeFunctions: ISupplyDataFunctions, eventType: string): void {
-	try {
-		if ('logAiEvent' in executeFunctions && typeof executeFunctions.logAiEvent === 'function') {
-			(executeFunctions.logAiEvent as any)({
-				type: eventType,
-			});
-		}
-	} catch (error) {
-		// Silently fail if logAiEvent is not available
-	}
+function logAiEvent(
+  executeFunctions: ISupplyDataFunctions,
+  eventType: string,
+): void {
+  try {
+    if (
+      "logAiEvent" in executeFunctions &&
+      typeof executeFunctions.logAiEvent === "function"
+    ) {
+      (executeFunctions.logAiEvent as any)({
+        type: eventType,
+      });
+    }
+  } catch (error) {
+    // Silently fail if logAiEvent is not available
+  }
 }
 
-export function logWrapper<T extends object>(originalInstance: T, executeFunctions: ISupplyDataFunctions): T {
-	console.log('EmbeddingsLogWrapper: Wrapping instance of type:', originalInstance.constructor.name);
-	
-	return new Proxy(originalInstance, {
-		get(target, prop, receiver) {
-			const originalValue = Reflect.get(target, prop, receiver);
-			
-			// Log all method calls for debugging
-			if (typeof originalValue === 'function' && typeof prop === 'string') {
-				console.log('EmbeddingsLogWrapper: Method accessed:', prop);
-			}
+export function logWrapper<T extends object>(
+  originalInstance: T,
+  executeFunctions: ISupplyDataFunctions,
+): T {
+  console.log(
+    "EmbeddingsLogWrapper: Wrapping instance of type:",
+    originalInstance.constructor.name,
+  );
 
-			// Handle Embeddings - check for embedDocuments/embedQuery methods instead of instanceof
-			if ('embedDocuments' in target || 'embedQuery' in target) {
-				if (prop === 'embedDocuments' && 'embedDocuments' in target) {
-					return async (documents: string[]): Promise<number[][]> => {
-						console.log('EmbeddingsLogWrapper: embedDocuments intercepted, docs:', documents?.length || 0);
-						const connectionType = 'ai_embedding' as any;
+  return new Proxy(originalInstance, {
+    get(target, prop, receiver) {
+      const originalValue = Reflect.get(target, prop, receiver);
 
-						// Log input data
-						const { index } = executeFunctions.addInputData(connectionType, [
-							[{ json: { documents } }],
-						]);
+      // Log all method calls for debugging
+      if (typeof originalValue === "function" && typeof prop === "string") {
+        console.log("EmbeddingsLogWrapper: Method accessed:", prop);
+      }
 
-						// Call the original method with proper error handling
-						const response = (await callMethodAsync.call(target, {
-							executeFunctions,
-							connectionType,
-							currentNodeRunIndex: index,
-							method: target[prop as keyof typeof target] as (...args: any[]) => Promise<unknown>,
-							arguments: [documents],
-						})) as number[][];
+      // Handle Embeddings - check for embedDocuments/embedQuery methods instead of instanceof
+      if ("embedDocuments" in target || "embedQuery" in target) {
+        if (prop === "embedDocuments" && "embedDocuments" in target) {
+          return async (documents: string[]): Promise<number[][]> => {
+            console.log(
+              "EmbeddingsLogWrapper: embedDocuments intercepted, docs:",
+              documents?.length || 0,
+            );
+            const connectionType = "ai_embedding" as any;
 
-						console.log('EmbeddingsLogWrapper: embedDocuments completed, embeddings count:', response?.length || 0);
-						if (response && response.length > 0) {
-							console.log('EmbeddingsLogWrapper: First embedding dimensions:', response[0]?.length || 0);
-						}
+            // Log input data
+            const { index } = executeFunctions.addInputData(connectionType, [
+              [{ json: { documents } }],
+            ]);
 
-						// Log AI event
-						logAiEvent(executeFunctions, 'ai-document-embedded');
+            // Call the original method with proper error handling
+            const response = (await callMethodAsync.call(target, {
+              executeFunctions,
+              connectionType,
+              currentNodeRunIndex: index,
+              method: target[prop as keyof typeof target] as (
+                ...args: any[]
+              ) => Promise<unknown>,
+              arguments: [documents],
+            })) as number[][];
 
-						// Log output data
-						executeFunctions.addOutputData(connectionType, index, [
-							[{ json: { response } }],
-						]);
+            console.log(
+              "EmbeddingsLogWrapper: embedDocuments completed, embeddings count:",
+              response?.length || 0,
+            );
+            if (response && response.length > 0) {
+              console.log(
+                "EmbeddingsLogWrapper: First embedding dimensions:",
+                response[0]?.length || 0,
+              );
+            }
 
-						return response;
-					};
-				}
+            // Log AI event
+            logAiEvent(executeFunctions, "ai-document-embedded");
 
-				if (prop === 'embedQuery' && 'embedQuery' in target) {
-					return async (query: string): Promise<number[]> => {
-						console.log('EmbeddingsLogWrapper: embedQuery intercepted, query length:', query?.length || 0);
-						const connectionType = 'ai_embedding' as any;
+            // Log output data
+            executeFunctions.addOutputData(connectionType, index, [
+              [{ json: { response } }],
+            ]);
 
-						// Log input data
-						const { index } = executeFunctions.addInputData(connectionType, [
-							[{ json: { query } }],
-						]);
+            return response;
+          };
+        }
 
-						// Call the original method with proper error handling
-						const response = (await callMethodAsync.call(target, {
-							executeFunctions,
-							connectionType,
-							currentNodeRunIndex: index,
-							method: target[prop as keyof typeof target] as (...args: any[]) => Promise<unknown>,
-							arguments: [query],
-						})) as number[];
+        if (prop === "embedQuery" && "embedQuery" in target) {
+          return async (query: string): Promise<number[]> => {
+            console.log(
+              "EmbeddingsLogWrapper: embedQuery intercepted, query length:",
+              query?.length || 0,
+            );
+            const connectionType = "ai_embedding" as any;
 
-						console.log('EmbeddingsLogWrapper: embedQuery completed, embedding dimensions:', response?.length || 0);
+            // Log input data
+            const { index } = executeFunctions.addInputData(connectionType, [
+              [{ json: { query } }],
+            ]);
 
-						// Log AI event
-						logAiEvent(executeFunctions, 'ai-query-embedded');
+            // Call the original method with proper error handling
+            const response = (await callMethodAsync.call(target, {
+              executeFunctions,
+              connectionType,
+              currentNodeRunIndex: index,
+              method: target[prop as keyof typeof target] as (
+                ...args: any[]
+              ) => Promise<unknown>,
+              arguments: [query],
+            })) as number[];
 
-						// Log output data
-						executeFunctions.addOutputData(connectionType, index, [
-							[{ json: { response } }],
-						]);
+            console.log(
+              "EmbeddingsLogWrapper: embedQuery completed, embedding dimensions:",
+              response?.length || 0,
+            );
 
-						return response;
-					};
-				}
-			}
+            // Log AI event
+            logAiEvent(executeFunctions, "ai-query-embedded");
 
-			return originalValue;
-		},
-	});
+            // Log output data
+            executeFunctions.addOutputData(connectionType, index, [
+              [{ json: { response } }],
+            ]);
+
+            return response;
+          };
+        }
+      }
+
+      return originalValue;
+    },
+  });
 }

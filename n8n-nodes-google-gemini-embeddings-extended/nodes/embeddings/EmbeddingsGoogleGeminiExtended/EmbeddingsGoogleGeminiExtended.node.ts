@@ -39,7 +39,7 @@ class CustomGoogleGenerativeAIEmbeddings {
         "CustomGoogleGenerativeAI: Constructor - original model:",
         config.model,
         "cleaned model:",
-        this.model
+        this.model,
       );
     }
     this.taskType = config.taskType;
@@ -56,7 +56,7 @@ class CustomGoogleGenerativeAIEmbeddings {
       console.log(
         "CustomGoogleGenerativeAI: embedDocuments called with",
         documents.length,
-        "documents"
+        "documents",
       );
     }
 
@@ -78,7 +78,7 @@ class CustomGoogleGenerativeAIEmbeddings {
       if (debugEnabled) {
         console.log(
           "CustomGoogleGenerativeAI: Request config:",
-          JSON.stringify(requestConfig, null, 2)
+          JSON.stringify(requestConfig, null, 2),
         );
       }
 
@@ -102,7 +102,7 @@ class CustomGoogleGenerativeAIEmbeddings {
           if (debugEnabled) {
             console.error(
               "CustomGoogleGenerativeAI: Invalid response structure:",
-              response
+              response,
             );
           }
           throw new Error("Invalid embedding response from Google Gemini API");
@@ -112,7 +112,7 @@ class CustomGoogleGenerativeAIEmbeddings {
           console.log(
             "CustomGoogleGenerativeAI: Received embedding with",
             embedding.length,
-            "dimensions"
+            "dimensions",
           );
         }
 
@@ -121,7 +121,7 @@ class CustomGoogleGenerativeAIEmbeddings {
         if (debugEnabled) {
           console.error(
             "CustomGoogleGenerativeAI: Error embedding document:",
-            error
+            error,
           );
         }
         throw error;
@@ -331,14 +331,14 @@ export class EmbeddingsGoogleGeminiExtended implements INodeType {
 
   async supplyData(
     this: ISupplyDataFunctions,
-    itemIndex: number
+    itemIndex: number,
   ): Promise<SupplyData> {
     this.logger.debug("Supply data for embeddings Google Gemini Extended");
 
     const modelName = this.getNodeParameter(
       "modelName",
       itemIndex,
-      "models/gemini-embedding-001"
+      "models/gemini-embedding-001",
     ) as string;
     const options = this.getNodeParameter("options", itemIndex, {}) as {
       outputDimensionality?: number;
