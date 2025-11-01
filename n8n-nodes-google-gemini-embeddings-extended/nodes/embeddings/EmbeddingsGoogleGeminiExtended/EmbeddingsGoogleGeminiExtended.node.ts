@@ -1,325 +1,371 @@
 import {
-	type INodeType,
-	type INodeTypeDescription,
-	type ISupplyDataFunctions,
-	type SupplyData,
-} from 'n8n-workflow';
+  type INodeType,
+  type INodeTypeDescription,
+  type ISupplyDataFunctions,
+  type SupplyData,
+} from "n8n-workflow";
 
-import { GoogleGenAI } from '@google/genai';
-import { logWrapper } from '../../utils/logWrapper';
+import { EmbedContentParameters, GoogleGenAI } from "@google/genai";
+import { logWrapper } from "../../utils/logWrapper";
 
 // Custom GoogleGenerativeAIEmbeddings using official @google/genai library
 class CustomGoogleGenerativeAIEmbeddings {
-	private client: any;
-	private model: string;
-	private taskType?: string;
-	private title?: string;
-	private stripNewLines: boolean;
+  private client: any;
+  private model: string;
+  private taskType?: string;
+  private title?: string;
+  private stripNewLines: boolean;
+  private outputDimensionality?: number;
 
-	constructor(config: {
-		apiKey: string;
-		baseUrl?: string;
-		model: string;
-		taskType?: string;
-		title?: string;
-		stripNewLines?: boolean;
-	}) {
-		this.client = new GoogleGenAI({ 
-			vertexai: false,  // Use direct Gemini API, not Vertex AI
-			apiKey: config.apiKey 
-		});
-		this.model = config.model.replace('models/', ''); // Remove models/ prefix
-		if (process.env.N8N_NODES_DEBUG === '1' || process.env.N8N_NODES_DEBUG === 'true') {
-			console.log('CustomGoogleGenerativeAI: Constructor - original model:', config.model, 'cleaned model:', this.model);
-		}
-		this.taskType = config.taskType;
-		this.title = config.title;
-		this.stripNewLines = config.stripNewLines !== false;
-	}
+  constructor(config: {
+    apiKey: string;
+    baseUrl?: string;
+    model: string;
+    taskType?: string;
+    title?: string;
+    stripNewLines?: boolean;
+    outputDimensionality?: number;
+  }) {
+    this.client = new GoogleGenAI({
+      vertexai: false, // Use direct Gemini API, not Vertex AI
+      apiKey: config.apiKey,
+    });
+    this.model = config.model.replace("models/", ""); // Remove models/ prefix
+    if (
+      process.env.N8N_NODES_DEBUG === "1" ||
+      process.env.N8N_NODES_DEBUG === "true"
+    ) {
+      console.log(
+        "CustomGoogleGenerativeAI: Constructor - original model:",
+        config.model,
+        "cleaned model:",
+        this.model
+      );
+    }
+    this.taskType = config.taskType;
+    this.title = config.title;
+    this.stripNewLines = config.stripNewLines !== false;
+    this.outputDimensionality = config.outputDimensionality;
+  }
 
-	async embedDocuments(documents: string[]): Promise<number[][]> {
-		const debugEnabled = process.env.N8N_NODES_DEBUG === '1' || process.env.N8N_NODES_DEBUG === 'true';
-		if (debugEnabled) {
-			console.log('CustomGoogleGenerativeAI: embedDocuments called with', documents.length, 'documents');
-		}
-		
-		const results: number[][] = [];
+  async embedDocuments(documents: string[]): Promise<number[][]> {
+    const debugEnabled =
+      process.env.N8N_NODES_DEBUG === "1" ||
+      process.env.N8N_NODES_DEBUG === "true";
+    if (debugEnabled) {
+      console.log(
+        "CustomGoogleGenerativeAI: embedDocuments called with",
+        documents.length,
+        "documents"
+      );
+    }
 
-		for (const document of documents) {
-			const text = this.stripNewLines ? document.replace(/\n/g, ' ') : document;
-			
-			const requestConfig: any = {
-				model: this.model,
-				contents: text,
-			};
+    const results: number[][] = [];
 
-			// Add optional parameters
-			if (this.taskType) {
-				requestConfig.taskType = this.taskType;
-			}
-			if (this.title && this.taskType === 'RETRIEVAL_DOCUMENT') {
-				requestConfig.title = this.title;
-			}
+    for (const document of documents) {
+      const text = this.stripNewLines ? document.replace(/\n/g, " ") : document;
 
-			if (debugEnabled) {
-				console.log('CustomGoogleGenerativeAI: Request config:', JSON.stringify(requestConfig, null, 2));
-			}
+      const requestConfig: EmbedContentParameters = {
+        model: this.model,
+        contents: text,
+        config: {
+          taskType: this.taskType,
+          title: this.title || undefined,
+          outputDimensionality: this.outputDimensionality || undefined,
+        },
+      };
 
-			try {
-				const response = await this.client.models.embedContent(requestConfig);
-				
-				if (debugEnabled) {
-					console.log('CustomGoogleGenerativeAI: API response metadata:', {
-						hasEmbedding: !!response.embedding,
-						hasEmbeddings: !!response.embeddings,
-						embeddingLength: response.embedding?.values?.length,
-						embeddingsCount: response.embeddings?.length,
-						firstEmbeddingLength: response.embeddings?.[0]?.values?.length
-					});
-				}
-				
-				const embedding = response.embedding?.values || response.embeddings?.[0]?.values;
-				
-				if (!embedding || !Array.isArray(embedding)) {
-					if (debugEnabled) {
-						console.error('CustomGoogleGenerativeAI: Invalid response structure:', response);
-					}
-					throw new Error('Invalid embedding response from Google Gemini API');
-				}
-				
-				if (debugEnabled) {
-					console.log('CustomGoogleGenerativeAI: Received embedding with', embedding.length, 'dimensions');
-				}
-				
-				results.push(embedding.map(Number));
-			} catch (error) {
-				if (debugEnabled) {
-					console.error('CustomGoogleGenerativeAI: Error embedding document:', error);
-				}
-				throw error;
-			}
-		}
+      if (debugEnabled) {
+        console.log(
+          "CustomGoogleGenerativeAI: Request config:",
+          JSON.stringify(requestConfig, null, 2)
+        );
+      }
 
-		return results;
-	}
+      try {
+        const response = await this.client.models.embedContent(requestConfig);
 
-	async embedQuery(query: string): Promise<number[]> {
-		const results = await this.embedDocuments([query]);
-		return results[0] || [];
-	}
+        if (debugEnabled) {
+          console.log("CustomGoogleGenerativeAI: API response metadata:", {
+            hasEmbedding: !!response.embedding,
+            hasEmbeddings: !!response.embeddings,
+            embeddingLength: response.embedding?.values?.length,
+            embeddingsCount: response.embeddings?.length,
+            firstEmbeddingLength: response.embeddings?.[0]?.values?.length,
+          });
+        }
+
+        const embedding =
+          response.embedding?.values || response.embeddings?.[0]?.values;
+
+        if (!embedding || !Array.isArray(embedding)) {
+          if (debugEnabled) {
+            console.error(
+              "CustomGoogleGenerativeAI: Invalid response structure:",
+              response
+            );
+          }
+          throw new Error("Invalid embedding response from Google Gemini API");
+        }
+
+        if (debugEnabled) {
+          console.log(
+            "CustomGoogleGenerativeAI: Received embedding with",
+            embedding.length,
+            "dimensions"
+          );
+        }
+
+        results.push(embedding.map(Number));
+      } catch (error) {
+        if (debugEnabled) {
+          console.error(
+            "CustomGoogleGenerativeAI: Error embedding document:",
+            error
+          );
+        }
+        throw error;
+      }
+    }
+
+    return results;
+  }
+
+  async embedQuery(query: string): Promise<number[]> {
+    const results = await this.embedDocuments([query]);
+    return results[0] || [];
+  }
 }
 
 export class EmbeddingsGoogleGeminiExtended implements INodeType {
-	description: INodeTypeDescription = {
-		displayName: 'Embeddings Google Gemini Extended',
-		name: 'embeddingsGoogleGeminiExtended',
-		group: ['transform'],
-		version: 1,
-		description: 'Use Google Gemini Embeddings with extended features like task types and titles',
-		defaults: {
-			name: 'Embeddings Google Gemini Extended',
-		},
-		codex: {
-			categories: ['AI'],
-			subcategories: {
-				AI: ['Embeddings'],
-			},
-			resources: {
-				primaryDocumentation: [
-					{
-						url: 'https://docs.n8n.io/integrations/builtin/cluster-nodes/sub-nodes/n8n-nodes-langchain.embeddingsgooglegeminiai/',
-					},
-				],
-			},
-		},
-		credentials: [
-			{
-				name: 'googlePalmApi',
-				required: true,
-			},
-		],
-		// This is a sub-node, it has no inputs
-		inputs: [],
-		// And it supplies data to the root node
-		outputs: ['ai_embedding' as any],
-		outputNames: ['Embeddings'],
-		requestDefaults: {
-			ignoreHttpStatusErrors: true,
-			baseURL: '={{ $credentials.host }}',
-		},
-		properties: [
-			{
-				displayName: 'Each model uses different dimensional densities for embeddings. Please ensure your vector store matches the model\'s default dimensions.',
-				name: 'notice',
-				type: 'notice',
-				default: '',
-			},
-			{
-				displayName: 'Model',
-				name: 'modelName',
-				type: 'options',
-				description: 'The model which will generate the embeddings. <a href="https://ai.google.dev/gemini-api/docs/models/gemini#text-embedding">Learn more</a>.',
-				typeOptions: {
-					loadOptions: {
-						routing: {
-							request: {
-								method: 'GET',
-								url: '/v1beta/models',
-							},
-							output: {
-								postReceive: [
-									{
-										type: 'rootProperty',
-										properties: {
-											property: 'models',
-										},
-									},
-									{
-										type: 'filter',
-										properties: {
-											pass: "={{ $responseItem.name.includes('embedding') }}",
-										},
-									},
-									{
-										type: 'setKeyValue',
-										properties: {
-											name: '={{$responseItem.name}}',
-											value: '={{$responseItem.name}}',
-											description: '={{$responseItem.description}}',
-										},
-									},
-									{
-										type: 'sort',
-										properties: {
-											key: 'name',
-										},
-									},
-								],
-							},
-						},
-					},
-				},
-				routing: {
-					send: {
-						type: 'body',
-						property: 'model',
-					},
-				},
-				default: 'models/gemini-embedding-001',
-			},
-			{
-				displayName: 'Options',
-				name: 'options',
-				placeholder: 'Add Option',
-				description: 'Additional options',
-				type: 'collection',
-				default: {},
-				options: [
-					{
-						displayName: 'Task Type',
-						name: 'taskType',
-						type: 'options',
-						default: 'RETRIEVAL_DOCUMENT',
-						description: 'The type of task for which the embeddings will be used',
-						options: [
-							{
-								name: 'Retrieval Document',
-								value: 'RETRIEVAL_DOCUMENT',
-							},
-							{
-								name: 'Retrieval Query',
-								value: 'RETRIEVAL_QUERY',
-							},
-							{
-								name: 'Semantic Similarity',
-								value: 'SEMANTIC_SIMILARITY',
-							},
-							{
-								name: 'Classification',
-								value: 'CLASSIFICATION',
-							},
-							{
-								name: 'Clustering',
-								value: 'CLUSTERING',
-							},
-							{
-								name: 'Question Answering',
-								value: 'QUESTION_ANSWERING',
-							},
-							{
-								name: 'Fact Verification',
-								value: 'FACT_VERIFICATION',
-							},
-							{
-								name: 'Code Retrieval Query',
-								value: 'CODE_RETRIEVAL_QUERY',
-							},
-						],
-					},
-					{
-						displayName: 'Title',
-						name: 'title',
-						type: 'string',
-						default: '',
-						description: 'An optional title for the text. Only applicable when TaskType is RETRIEVAL_DOCUMENT.',
-						displayOptions: {
-							show: {
-								taskType: ['RETRIEVAL_DOCUMENT'],
-							},
-						},
-					},
-					{
-						displayName: 'Strip New Lines',
-						name: 'stripNewLines',
-						type: 'boolean',
-						default: true,
-						description: 'Whether to strip new lines from the input text',
-					},
-					{
-						displayName: 'Batch Size',
-						name: 'batchSize',
-						type: 'number',
-						default: 100,
-						description: 'Maximum number of texts to embed in a single request. Lower this value if you encounter rate limits.',
-					},
-				],
-			},
-		],
-	};
+  description: INodeTypeDescription = {
+    displayName: "Embeddings Google Gemini Extended",
+    name: "embeddingsGoogleGeminiExtended",
+    group: ["transform"],
+    version: 1,
+    description:
+      "Use Google Gemini Embeddings with extended features like task types and titles",
+    defaults: {
+      name: "Embeddings Google Gemini Extended",
+    },
+    codex: {
+      categories: ["AI"],
+      subcategories: {
+        AI: ["Embeddings"],
+      },
+      resources: {
+        primaryDocumentation: [
+          {
+            url: "https://docs.n8n.io/integrations/builtin/cluster-nodes/sub-nodes/n8n-nodes-langchain.embeddingsgooglegeminiai/",
+          },
+        ],
+      },
+    },
+    credentials: [
+      {
+        name: "googlePalmApi",
+        required: true,
+      },
+    ],
+    // This is a sub-node, it has no inputs
+    inputs: [],
+    // And it supplies data to the root node
+    outputs: ["ai_embedding" as any],
+    outputNames: ["Embeddings"],
+    requestDefaults: {
+      ignoreHttpStatusErrors: true,
+      baseURL: "={{ $credentials.host }}",
+    },
+    properties: [
+      {
+        displayName:
+          "Each model uses different dimensional densities for embeddings. Please ensure your vector store matches the model's default dimensions.",
+        name: "notice",
+        type: "notice",
+        default: "",
+      },
+      {
+        displayName: "Model",
+        name: "modelName",
+        type: "options",
+        description:
+          'The model which will generate the embeddings. <a href="https://ai.google.dev/gemini-api/docs/models/gemini#text-embedding">Learn more</a>.',
+        typeOptions: {
+          loadOptions: {
+            routing: {
+              request: {
+                method: "GET",
+                url: "/v1beta/models",
+              },
+              output: {
+                postReceive: [
+                  {
+                    type: "rootProperty",
+                    properties: {
+                      property: "models",
+                    },
+                  },
+                  {
+                    type: "filter",
+                    properties: {
+                      pass: "={{ $responseItem.name.includes('embedding') }}",
+                    },
+                  },
+                  {
+                    type: "setKeyValue",
+                    properties: {
+                      name: "={{$responseItem.name}}",
+                      value: "={{$responseItem.name}}",
+                      description: "={{$responseItem.description}}",
+                    },
+                  },
+                  {
+                    type: "sort",
+                    properties: {
+                      key: "name",
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        },
+        routing: {
+          send: {
+            type: "body",
+            property: "model",
+          },
+        },
+        default: "models/gemini-embedding-001",
+      },
+      {
+        displayName: "Output Dimensions",
+        name: "outputDimensionality",
+        type: "number",
+        default: 0,
+        description:
+          "The number of dimensions for the output embeddings. Set to 0 to use the model default. Only supported by certain models like text-embedding-004.",
+      },
+      {
+        displayName: "Options",
+        name: "options",
+        placeholder: "Add Option",
+        description: "Additional options",
+        type: "collection",
+        default: {},
+        options: [
+          {
+            displayName: "Task Type",
+            name: "taskType",
+            type: "options",
+            default: "RETRIEVAL_DOCUMENT",
+            description:
+              "The type of task for which the embeddings will be used",
+            options: [
+              {
+                name: "Retrieval Document",
+                value: "RETRIEVAL_DOCUMENT",
+              },
+              {
+                name: "Retrieval Query",
+                value: "RETRIEVAL_QUERY",
+              },
+              {
+                name: "Semantic Similarity",
+                value: "SEMANTIC_SIMILARITY",
+              },
+              {
+                name: "Classification",
+                value: "CLASSIFICATION",
+              },
+              {
+                name: "Clustering",
+                value: "CLUSTERING",
+              },
+              {
+                name: "Question Answering",
+                value: "QUESTION_ANSWERING",
+              },
+              {
+                name: "Fact Verification",
+                value: "FACT_VERIFICATION",
+              },
+              {
+                name: "Code Retrieval Query",
+                value: "CODE_RETRIEVAL_QUERY",
+              },
+            ],
+          },
+          {
+            displayName: "Title",
+            name: "title",
+            type: "string",
+            default: "",
+            description:
+              "An optional title for the text. Only applicable when TaskType is RETRIEVAL_DOCUMENT.",
+            displayOptions: {
+              show: {
+                taskType: ["RETRIEVAL_DOCUMENT"],
+              },
+            },
+          },
+          {
+            displayName: "Strip New Lines",
+            name: "stripNewLines",
+            type: "boolean",
+            default: true,
+            description: "Whether to strip new lines from the input text",
+          },
+          {
+            displayName: "Batch Size",
+            name: "batchSize",
+            type: "number",
+            default: 100,
+            description:
+              "Maximum number of texts to embed in a single request. Lower this value if you encounter rate limits.",
+          },
+        ],
+      },
+    ],
+  };
 
-	async supplyData(this: ISupplyDataFunctions, itemIndex: number): Promise<SupplyData> {
-		this.logger.debug('Supply data for embeddings Google Gemini Extended');
-		
-		const modelName = this.getNodeParameter(
-			'modelName',
-			itemIndex,
-			'models/gemini-embedding-001',
-		) as string;
-		const options = this.getNodeParameter('options', itemIndex, {}) as {
-			taskType?: string;
-			title?: string;
-			stripNewLines?: boolean;
-			batchSize?: number;
-		};
+  async supplyData(
+    this: ISupplyDataFunctions,
+    itemIndex: number
+  ): Promise<SupplyData> {
+    this.logger.debug("Supply data for embeddings Google Gemini Extended");
 
-		const credentials = await this.getCredentials('googlePalmApi');
+    const modelName = this.getNodeParameter(
+      "modelName",
+      itemIndex,
+      "models/gemini-embedding-001"
+    ) as string;
+    const options = this.getNodeParameter("options", itemIndex, {}) as {
+      outputDimensionality?: number;
+      taskType?: string;
+      title?: string;
+      stripNewLines?: boolean;
+      batchSize?: number;
+    };
 
-		// Create embeddings configuration
-		const embeddingsConfig = {
-			apiKey: credentials.apiKey as string,
-			...(credentials.host && { baseUrl: credentials.host as string }),
-			model: modelName,
-			...(options.taskType && { taskType: options.taskType as any }),
-			...(options.title && { title: options.title }),
-			stripNewLines: options.stripNewLines !== false,
-		};
+    const credentials = await this.getCredentials("googlePalmApi");
 
-		// Use custom implementation that properly supports outputDimensionality
-		const embeddings = new CustomGoogleGenerativeAIEmbeddings(embeddingsConfig);
+    // Create embeddings configuration
+    const embeddingsConfig = {
+      apiKey: credentials.apiKey as string,
+      ...(credentials.host && { baseUrl: credentials.host as string }),
+      model: modelName,
+      ...(options.taskType && { taskType: options.taskType as any }),
+      ...(options.title && { title: options.title }),
+      stripNewLines: options.stripNewLines !== false,
+      outputDimensionality: options.outputDimensionality,
+    };
 
-		// Return the embeddings instance wrapped with logging for visual feedback
-		return {
-			response: logWrapper(embeddings, this),
-		};
-	}
-} 
+    const embeddings = new CustomGoogleGenerativeAIEmbeddings(embeddingsConfig);
+
+    // Return the embeddings instance wrapped with logging for visual feedback
+    return {
+      response: logWrapper(embeddings, this),
+    };
+  }
+}
