@@ -175,10 +175,15 @@ export async function mcpToolToDynamicTool(
 export async function createMcpToolkit(tools: any[]): Promise<any> {
 	await ensureLangChainLoaded();
 	
-	// Create custom toolkit class dynamically
+	// Create a Toolkit instance from n8n's langchain
+	// This will pass the instanceof check
 	class McpToolkit extends Toolkit {
 		constructor(public tools: any[]) {
 			super();
+		}
+		
+		getTools() {
+			return this.tools;
 		}
 	}
 	

@@ -19,6 +19,7 @@ import type { McpServerTransport, McpAuthenticationOption, McpToolIncludeMode } 
 import {
 	connectMcpClient,
 	createCallTool,
+	createMcpToolkit,
 	getAllTools,
 	getAuthHeaders,
 	getSelectedTools,
@@ -386,13 +387,11 @@ export class McpClientExtended implements INodeType {
 
 		this.logger.debug(`McpClientExtended: Connected to MCP Server with ${tools.length} tools`);
 
-		// Return first tool directly - for multiple tools, user needs multiple node instances
-		// This avoids the Toolkit instanceof check that fails across module boundaries
-		if (tools.length === 0) {
-			throw new NodeOperationError(node, 'No tools available after filtering');
-		}
+		// Create toolkit from n8n's langchain module (lazy-loaded)
+		// This will pass instanceof check because Toolkit is from n8n's module
+		const toolkit = await createMcpToolkit(tools);
 
-		return { response: tools[0], closeFunction: async () => await client.close() };
+		return { response: toolkit, closeFunction: async () => await client.close() };
 	}
 
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
