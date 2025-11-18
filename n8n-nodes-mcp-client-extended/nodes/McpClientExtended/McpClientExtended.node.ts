@@ -19,10 +19,10 @@ import type { McpServerTransport, McpAuthenticationOption, McpToolIncludeMode } 
 import {
 	connectMcpClient,
 	createCallTool,
+	createMcpToolkit,
 	getAllTools,
 	getAuthHeaders,
 	getSelectedTools,
-	McpToolkit,
 	mcpToolToDynamicTool,
 	mergeCustomHeaders,
 	tryRefreshOAuth2Token,
@@ -368,23 +368,25 @@ export class McpClientExtended implements INodeType {
 			);
 		}
 
-		const tools = mcpTools.map((tool) =>
-			logWrapper(
-				mcpToolToDynamicTool(
-					tool,
-					createCallTool(tool.name, client, config.timeout, (errorMessage) => {
-						const error = new NodeOperationError(node, errorMessage, { itemIndex });
-						void this.addOutputData('ai_tool', itemIndex, error);
-						this.logger.error(`McpClientExtended: Tool "${tool.name}" failed to execute`, { error });
-					}),
+		const tools = await Promise.all(
+			mcpTools.map(async (tool) =>
+				logWrapper(
+					await mcpToolToDynamicTool(
+						tool,
+						createCallTool(tool.name, client, config.timeout, (errorMessage) => {
+							const error = new NodeOperationError(node, errorMessage, { itemIndex });
+							void this.addOutputData('ai_tool', itemIndex, error);
+							this.logger.error(`McpClientExtended: Tool "${tool.name}" failed to execute`, { error });
+						}),
+					),
+					this,
 				),
-				this,
 			),
 		);
 
 		this.logger.debug(`McpClientExtended: Connected to MCP Server with ${tools.length} tools`);
 
-		const toolkit = new McpToolkit(tools);
+		const toolkit = await createMcpToolkit(tools);
 
 		return { response: toolkit, closeFunction: async () => await client.close() };
 	}

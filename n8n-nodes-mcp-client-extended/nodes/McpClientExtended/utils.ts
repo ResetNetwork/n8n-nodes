@@ -1,9 +1,23 @@
-import { DynamicTool } from '@langchain/core/tools';
+// Lazy-load @langchain to avoid module resolution conflicts
+// These will be loaded at runtime when n8n's context is available
+let DynamicTool: any;
+let Toolkit: any;
+
+async function ensureLangChainLoaded() {
+	if (!DynamicTool) {
+		const toolsModule = await import('@langchain/core/tools');
+		DynamicTool = toolsModule.DynamicTool;
+	}
+	if (!Toolkit) {
+		const agentsModule = await import('langchain/agents');
+		Toolkit = agentsModule.Toolkit;
+	}
+}
+
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { CompatibilityCallToolResultSchema } from '@modelcontextprotocol/sdk/types.js';
-import { Toolkit } from 'langchain/agents';
 import {
 	createResultError,
 	createResultOk,
@@ -127,10 +141,13 @@ export const createCallTool =
 		return JSON.stringify(result);
 	};
 
-export function mcpToolToDynamicTool(
+export async function mcpToolToDynamicTool(
 	tool: McpTool,
 	onCallTool: (input: string) => Promise<string>,
-): DynamicTool {
+): Promise<any> {
+	// Ensure langchain is loaded
+	await ensureLangChainLoaded();
+	
 	// Use DynamicTool instead of DynamicStructuredTool for cross-module compatibility
 	// MCP tools accept JSON input, which we'll parse from the string input
 	const description = tool.description ?? `Execute the ${tool.name} tool`;
@@ -155,10 +172,17 @@ export function mcpToolToDynamicTool(
 	});
 }
 
-export class McpToolkit extends Toolkit {
-	constructor(public tools: DynamicTool[]) {
-		super();
+export async function createMcpToolkit(tools: any[]): Promise<any> {
+	await ensureLangChainLoaded();
+	
+	// Create custom toolkit class dynamically
+	class McpToolkit extends Toolkit {
+		constructor(public tools: any[]) {
+			super();
+		}
 	}
+	
+	return new McpToolkit(tools);
 }
 
 function safeCreateUrl(url: string, baseUrl?: string | URL): Result<URL, Error> {
