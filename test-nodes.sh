@@ -10,14 +10,16 @@ export N8N_CUSTOM_EXTENSIONS="$HOME/.n8n/custom"
 
 # Start n8n in the background and capture output
 echo "🚀 Starting n8n to test node loading..."
-timeout 10s n8n start > n8n_test_output.log 2>&1 &
+n8n start > n8n_test_output.log 2>&1 &
 N8N_PID=$!
 
 # Wait a bit for n8n to start
 sleep 8
 
 # Kill n8n
-kill $N8N_PID 2>/dev/null || true
+kill -TERM $N8N_PID 2>/dev/null || true
+sleep 2
+kill -KILL $N8N_PID 2>/dev/null || true
 wait $N8N_PID 2>/dev/null || true
 
 echo "📋 Checking n8n startup logs for custom nodes..."
@@ -51,6 +53,11 @@ if grep -q "n8n-nodes-query-retriever-rerank" n8n_test_output.log; then
     ((NODES_FOUND++))
 fi
 
+if grep -q "n8n-nodes-mcp-client-extended" n8n_test_output.log; then
+    echo "  ✅ MCP Client Extended found"
+    ((NODES_FOUND++))
+fi
+
 # Check for any loading errors
 if grep -i "error" n8n_test_output.log | grep -v "No encryption key" | grep -v "SIGTERM"; then
     echo "⚠️  Potential errors found in logs:"
@@ -59,9 +66,9 @@ fi
 
 echo ""
 echo "📊 Test Results:"
-echo "  Nodes detected in logs: $NODES_FOUND/4"
+echo "  Nodes detected in logs: $NODES_FOUND/6"
 
-if [ $NODES_FOUND -eq 4 ]; then
+if [ $NODES_FOUND -eq 6 ]; then
     echo "  🎉 All nodes appear to be loading correctly!"
 elif [ $NODES_FOUND -gt 0 ]; then
     echo "  ⚠️  Some nodes may not be loading properly"

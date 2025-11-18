@@ -140,3 +140,4 @@ out
 test-*.json
 *.test.js
 *.test.ts 
+n8n-reference/

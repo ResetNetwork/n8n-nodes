@@ -26,6 +26,7 @@ NODE_DIRS=(
     "n8n-nodes-google-vertex-embeddings-extended"
     "n8n-nodes-semantic-splitter-with-context"
     "n8n-nodes-query-retriever-rerank"
+    "n8n-nodes-mcp-client-extended"
 )
 
 # Function to check and fix package structure
