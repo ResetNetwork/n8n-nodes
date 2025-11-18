@@ -390,16 +390,19 @@ export class McpClientExtended implements INodeType {
 			);
 		}
 
-		// Create tools array without logWrapper for now to test invoke
+		// Create tools array with logWrapper for proper logging
 		const tools = await Promise.all(
 			mcpTools.map(async (tool) =>
-				await mcpToolToDynamicTool(
-					tool,
-					createCallTool(tool.name, client, config.timeout, (errorMessage) => {
-						const error = new NodeOperationError(node, errorMessage, { itemIndex });
-						void this.addOutputData('ai_tool', itemIndex, error);
-						this.logger.error(`McpClientExtended: Tool "${tool.name}" failed to execute`, { error });
-					}),
+				logWrapper(
+					await mcpToolToDynamicTool(
+						tool,
+						createCallTool(tool.name, client, config.timeout, (errorMessage) => {
+							const error = new NodeOperationError(node, errorMessage, { itemIndex });
+							void this.addOutputData('ai_tool', itemIndex, error);
+							this.logger.error(`McpClientExtended: Tool "${tool.name}" failed to execute`, { error });
+						}),
+					),
+					this,
 				),
 			),
 		);
