@@ -54,13 +54,11 @@
     "prettier": "^3.2.4",
     "typescript": "^5.3.3"
   },
-  "dependencies": {
-    "@langchain/core": "0.3.68",
-    "@modelcontextprotocol/sdk": "1.20.0",
-    "langchain": "0.3.33"
-  },
   "peerDependencies": {
-    "n8n-workflow": "*"
+    "n8n-workflow": "*",
+    "@langchain/core": "*",
+    "langchain": "*",
+    "@modelcontextprotocol/sdk": "*"
   },
   "engines": {
     "node": ">=18.0.0"
