@@ -29,14 +29,12 @@
   },
   "main": "index.js",
   "scripts": {
-    "build": "tsc && npm run clean-deps",
-    "clean-deps": "rm -rf node_modules/@langchain node_modules/langchain node_modules/langsmith node_modules/@modelcontextprotocol node_modules/pkce-challenge node_modules/openai node_modules/uuid || true",
+    "build": "tsc",
     "dev": "tsc --watch",
     "format": "prettier nodes --write",
     "lint": "echo 'Lint check skipped - no eslint config'",
     "lintfix": "echo 'Lint fix skipped - no eslint config'",
-    "prepublishOnly": "npm run build && npm run lint",
-    "postinstall": "npm run clean-deps"
+    "prepublishOnly": "npm run build && npm run lint"
   },
   "files": [
     "dist"
@@ -48,23 +46,21 @@
     ]
   },
   "devDependencies": {
-    "@langchain/core": "*",
-    "@modelcontextprotocol/sdk": "*",
     "@types/node": "^20.11.0",
     "@typescript-eslint/parser": "^6.19.0",
     "eslint": "^8.56.0",
     "eslint-plugin-n8n-nodes-base": "^1.16.1",
-    "langchain": "*",
     "n8n-workflow": "*",
     "prettier": "^3.2.4",
     "typescript": "^5.3.3"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@langchain/core": "0.3.68",
+    "@modelcontextprotocol/sdk": "1.20.0",
+    "langchain": "0.3.33"
+  },
   "peerDependencies": {
-    "@langchain/core": "*",
-    "langchain": "*",
-    "n8n-workflow": "*",
-    "@modelcontextprotocol/sdk": "*"
+    "n8n-workflow": "*"
   },
   "engines": {
     "node": ">=18.0.0"
