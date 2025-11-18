@@ -16,11 +16,20 @@ export async function getTools(this: ILoadOptionsFunctions): Promise<INodeProper
 	
 	const { headers: authHeaders } = await getAuthHeaders(this, authentication);
 	
-	// Get custom headers if specified
-	const customHeadersEnabled = this.getNodeParameter('options.customHeadersEnabled', false) as boolean;
-	let customHeaders;
-	if (customHeadersEnabled) {
-		customHeaders = this.getNodeParameter('options.customHeaders', {}) as Record<string, string>;
+	// Get custom headers from fixedCollection
+	const customHeadersData = this.getNodeParameter('options.customHeaders', {}) as {
+		values?: Array<{ name: string; value: string }>;
+	};
+	
+	// Convert array format to object for header merging
+	let customHeaders: Record<string, string> | undefined;
+	if (customHeadersData?.values && Array.isArray(customHeadersData.values)) {
+		customHeaders = customHeadersData.values.reduce((acc, header) => {
+			if (header.name && header.value) {
+				acc[header.name] = header.value;
+			}
+			return acc;
+		}, {} as Record<string, string>);
 	}
 	
 	// Merge custom headers with auth headers

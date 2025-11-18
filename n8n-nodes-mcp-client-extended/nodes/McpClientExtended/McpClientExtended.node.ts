@@ -57,11 +57,20 @@ function getNodeConfig(
 	const includeTools = ctx.getNodeParameter('includeTools', itemIndex, []) as string[];
 	const excludeTools = ctx.getNodeParameter('excludeTools', itemIndex, []) as string[];
 
-	// Get custom headers if enabled
-	const customHeadersEnabled = ctx.getNodeParameter('options.customHeadersEnabled', itemIndex, false) as boolean;
-	let customHeaders;
-	if (customHeadersEnabled) {
-		customHeaders = ctx.getNodeParameter('options.customHeaders', itemIndex, {}) as IDataObject;
+	// Get custom headers from fixedCollection
+	const customHeadersData = ctx.getNodeParameter('options.customHeaders', itemIndex, {}) as {
+		values?: Array<{ name: string; value: string }>;
+	};
+	
+	// Convert array format to object for header merging
+	let customHeaders: IDataObject | undefined;
+	if (customHeadersData?.values && Array.isArray(customHeadersData.values)) {
+		customHeaders = customHeadersData.values.reduce((acc, header) => {
+			if (header.name && header.value) {
+				acc[header.name] = header.value;
+			}
+			return acc;
+		}, {} as IDataObject);
 	}
 
 	return {
@@ -305,24 +314,39 @@ export class McpClientExtended implements INodeType {
 						description: 'Time in ms to wait for tool calls to finish',
 					},
 					{
-						displayName: 'Enable Custom Headers',
-						name: 'customHeadersEnabled',
-						type: 'boolean',
-						default: false,
-						description: 'Whether to add custom headers to the MCP server requests',
-					},
-					{
 						displayName: 'Custom Headers',
 						name: 'customHeaders',
-						type: 'json',
-						default: '{}',
-						description: 'Custom headers to send with the request. Can use expressions for dynamic values.',
-						hint: 'Add custom headers as a JSON object, e.g. {"X-Custom-Header": "value", "X-Request-ID": "{{ $json.id }}"}',
-						displayOptions: {
-							show: {
-								customHeadersEnabled: [true],
-							},
+						type: 'fixedCollection',
+						typeOptions: {
+							multipleValues: true,
 						},
+						default: {},
+						description: 'Add custom headers to send with MCP server requests',
+						placeholder: 'Add Header',
+						options: [
+							{
+								displayName: 'Header',
+								name: 'values',
+								values: [
+									{
+										displayName: 'Name',
+										name: 'name',
+										type: 'string',
+										default: '',
+										description: 'Header name (e.g. X-Custom-Header)',
+										placeholder: 'X-Custom-Header',
+									},
+									{
+										displayName: 'Value',
+										name: 'value',
+										type: 'string',
+										default: '',
+										description: 'Header value. Supports expressions.',
+										placeholder: '={{ $json.value }}',
+									},
+								],
+							},
+						],
 					},
 				],
 			},
