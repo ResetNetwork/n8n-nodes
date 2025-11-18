@@ -34,7 +34,8 @@
     "format": "prettier nodes --write",
     "lint": "echo 'Lint check skipped - no eslint config'",
     "lintfix": "echo 'Lint fix skipped - no eslint config'",
-    "prepublishOnly": "npm run build && npm run lint"
+    "prepublishOnly": "npm run build && npm run lint",
+    "postinstall": "rm -rf node_modules/@langchain node_modules/langchain node_modules/langsmith node_modules/openai node_modules/uuid || true"
   },
   "files": [
     "dist"
