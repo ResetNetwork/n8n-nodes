@@ -1,2 +1,2 @@
-module.exports = require('./dist/nodes/McpClientExtended/McpClientExtended.node.js');
+module.exports = require('./dist/McpClientExtended/McpClientExtended.node.js');
 
