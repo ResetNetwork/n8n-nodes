@@ -52,12 +52,17 @@
     "eslint-plugin-n8n-nodes-base": "^1.16.1",
     "n8n-workflow": "^1.25.1",
     "prettier": "^3.2.4",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "@langchain/core": "*",
+    "langchain": "*"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "zod": "^3.22.0"
   },
   "peerDependencies": {
     "n8n-workflow": "^1.25.1",
     "@langchain/core": "*",
-    "@modelcontextprotocol/sdk": "*",
     "langchain": "*"
   },
   "engines": {
