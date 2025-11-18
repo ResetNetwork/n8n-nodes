@@ -1,10 +1,10 @@
-import { ISupplyDataFunctions, NodeConnectionType, NodeOperationError } from 'n8n-workflow';
+import { ISupplyDataFunctions, nodeConnectionTypes, NodeOperationError } from 'n8n-workflow';
 
 async function callMethodAsync<T>(
 	this: T,
 	parameters: {
 		executeFunctions: ISupplyDataFunctions;
-		connectionType: NodeConnectionType;
+		connectionType: string;
 		currentNodeRunIndex: number;
 		method: (...args: any[]) => Promise<unknown>;
 		arguments: unknown[];
@@ -37,7 +37,7 @@ export function logWrapper<T extends object>(originalInstance: T, executeFunctio
 			if ('_call' in target || 'call' in target) {
 				if (prop === '_call' && '_call' in target) {
 					return async (query: any): Promise<string> => {
-						const connectionType = NodeConnectionType.AiTool;
+						const connectionType = 'ai_tool';
 						const inputData: any = { query };
 
 						// Check if this is from a toolkit
@@ -78,7 +78,7 @@ export function logWrapper<T extends object>(originalInstance: T, executeFunctio
 
 				if (prop === 'call' && 'call' in target) {
 					return async (query: any): Promise<string> => {
-						const connectionType = NodeConnectionType.AiTool;
+						const connectionType = 'ai_tool';
 						const inputData: any = { query };
 
 						// Check if this is from a toolkit

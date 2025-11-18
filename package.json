@@ -4,7 +4,11 @@
   "description": "A collection of custom n8n nodes for enhanced document processing, text splitting, embeddings generation, and advanced query retrieval with reranking",
   "private": true,
   "workspaces": [
-    "n8n-nodes-*"
+    "n8n-nodes-contextual-document-loader",
+    "n8n-nodes-google-gemini-embeddings-extended",
+    "n8n-nodes-google-vertex-embeddings-extended",
+    "n8n-nodes-semantic-splitter-with-context",
+    "n8n-nodes-query-retriever-rerank"
   ],
   "scripts": {
     "build": "npm run build --workspaces",

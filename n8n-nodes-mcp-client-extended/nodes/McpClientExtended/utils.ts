@@ -163,7 +163,7 @@ export function mcpToolToDynamicTool(
 	const rawSchema = convertJsonSchemaToZod(tool.inputSchema);
 
 	// Ensure we always have an object schema for structured tools
-	const objectSchema =
+	const objectSchema: any =
 		rawSchema instanceof z.ZodObject ? rawSchema : z.object({ value: rawSchema });
 
 	return new DynamicStructuredTool({

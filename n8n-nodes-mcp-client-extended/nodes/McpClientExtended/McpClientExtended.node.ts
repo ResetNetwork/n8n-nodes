@@ -3,7 +3,7 @@ import {
 	type IDataObject,
 	type IExecuteFunctions,
 	type INodeExecutionData,
-	NodeConnectionType,
+	nodeConnectionTypes,
 	NodeOperationError,
 	type INodeType,
 	type INodeTypeDescription,
@@ -136,7 +136,7 @@ export class McpClientExtended implements INodeType {
 			alias: ['Model Context Protocol', 'MCP Client', 'Custom Headers'],
 		},
 		inputs: [],
-		outputs: [{ type: NodeConnectionType.AiTool, displayName: 'Tools' }],
+		outputs: [{ type: 'ai_tool', displayName: 'Tools' }],
 		credentials: [
 			{
 				name: 'httpBearerAuth',
@@ -176,7 +176,7 @@ export class McpClientExtended implements INodeType {
 			},
 		],
 		properties: [
-			getConnectionHintNoticeField([NodeConnectionType.AiAgent]),
+			getConnectionHintNoticeField(['ai_agent']),
 			{
 				displayName: 'Endpoint',
 				name: 'endpointUrl',
@@ -341,7 +341,7 @@ export class McpClientExtended implements INodeType {
 
 		const setError = (message: string, description?: string): SupplyData => {
 			const error = new NodeOperationError(node, message, { itemIndex, description });
-			this.addOutputData(NodeConnectionType.AiTool, itemIndex, error);
+			this.addOutputData('ai_tool', itemIndex, error);
 			throw error;
 		};
 
@@ -374,7 +374,7 @@ export class McpClientExtended implements INodeType {
 					tool,
 					createCallTool(tool.name, client, config.timeout, (errorMessage) => {
 						const error = new NodeOperationError(node, errorMessage, { itemIndex });
-						void this.addOutputData(NodeConnectionType.AiTool, itemIndex, error);
+						void this.addOutputData('ai_tool', itemIndex, error);
 						this.logger.error(`McpClientExtended: Tool "${tool.name}" failed to execute`, { error });
 					}),
 				),
