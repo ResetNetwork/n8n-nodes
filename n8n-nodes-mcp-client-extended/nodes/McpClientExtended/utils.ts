@@ -117,10 +117,10 @@ export const getErrorDescriptionFromToolCall = (result: unknown): string | undef
 
 export const createCallTool =
 	(name: string, client: Client, timeout: number, onError: (error: string) => void) =>
-	async (args: IDataObject): Promise<string> => {
+	async (args: IDataObject) => {
 		let result: Awaited<ReturnType<Client['callTool']>>;
 
-		function handleError(error: unknown): string {
+		function handleError(error: unknown) {
 			const errorDescription =
 				getErrorDescriptionFromToolCall(error) ?? `Failed to execute tool "${name}"`;
 			onError(errorDescription);
@@ -140,14 +140,14 @@ export const createCallTool =
 		}
 
 		if (result.toolResult !== undefined) {
-			return typeof result.toolResult === 'string' ? result.toolResult : JSON.stringify(result.toolResult);
+			return result.toolResult;
 		}
 
 		if (result.content !== undefined) {
-			return typeof result.content === 'string' ? result.content : JSON.stringify(result.content);
+			return result.content;
 		}
 
-		return JSON.stringify(result);
+		return result;
 	};
 
 export function mcpToolToDynamicTool(

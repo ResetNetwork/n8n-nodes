@@ -18,12 +18,10 @@ async function callMethodAsync<T>(
 	}
 }
 
-function logAiEvent(executeFunctions: ISupplyDataFunctions, eventType: string): void {
+function logAiEvent(executeFunctions: ISupplyDataFunctions, eventType: string, data?: any): void {
 	try {
 		if ('logAiEvent' in executeFunctions && typeof executeFunctions.logAiEvent === 'function') {
-			(executeFunctions.logAiEvent as any)({
-				type: eventType,
-			});
+			(executeFunctions.logAiEvent as any)(eventType, data);
 		}
 	} catch {
 		// Silently fail if logAiEvent is not available
@@ -38,12 +36,21 @@ export function logWrapper<T extends object>(originalInstance: T, executeFunctio
 			// Handle Tool - check for _call method (standard tool interface)
 			if ('_call' in target || 'call' in target) {
 				if (prop === '_call' && '_call' in target) {
-					return async (input: string): Promise<string> => {
+					return async (query: any): Promise<string> => {
 						const connectionType = NodeConnectionType.AiTool;
+						const inputData: any = { query };
+
+						// Check if this is from a toolkit
+						if ((target as any).metadata?.isFromToolkit) {
+							inputData.tool = {
+								name: (target as any).name,
+								description: (target as any).description,
+							};
+						}
 
 						// Log input data
 						const { index } = executeFunctions.addInputData(connectionType, [
-							[{ json: { input } }],
+							[{ json: inputData }],
 						]);
 
 						// Call the original method with proper error handling
@@ -52,28 +59,39 @@ export function logWrapper<T extends object>(originalInstance: T, executeFunctio
 							connectionType,
 							currentNodeRunIndex: index,
 							method: target[prop as keyof typeof target] as (...args: any[]) => Promise<unknown>,
-							arguments: [input],
+							arguments: [query],
 						})) as string;
 
 						// Log AI event
-						logAiEvent(executeFunctions, 'ai-tool-called');
+						logAiEvent(executeFunctions, 'ai-tool-called', { ...inputData, response });
 
 						// Log output data
 						executeFunctions.addOutputData(connectionType, index, [
 							[{ json: { response } }],
 						]);
 
-						return response;
+						// Ensure we return a string
+						if (typeof response === 'string') return response;
+						return JSON.stringify(response);
 					};
 				}
 
 				if (prop === 'call' && 'call' in target) {
-					return async (input: string): Promise<string> => {
+					return async (query: any): Promise<string> => {
 						const connectionType = NodeConnectionType.AiTool;
+						const inputData: any = { query };
+
+						// Check if this is from a toolkit
+						if ((target as any).metadata?.isFromToolkit) {
+							inputData.tool = {
+								name: (target as any).name,
+								description: (target as any).description,
+							};
+						}
 
 						// Log input data
 						const { index } = executeFunctions.addInputData(connectionType, [
-							[{ json: { input } }],
+							[{ json: inputData }],
 						]);
 
 						// Call the original method with proper error handling
@@ -82,18 +100,20 @@ export function logWrapper<T extends object>(originalInstance: T, executeFunctio
 							connectionType,
 							currentNodeRunIndex: index,
 							method: target[prop as keyof typeof target] as (...args: any[]) => Promise<unknown>,
-							arguments: [input],
+							arguments: [query],
 						})) as string;
 
 						// Log AI event
-						logAiEvent(executeFunctions, 'ai-tool-called');
+						logAiEvent(executeFunctions, 'ai-tool-called', { ...inputData, response });
 
 						// Log output data
 						executeFunctions.addOutputData(connectionType, index, [
 							[{ json: { response } }],
 						]);
 
-						return response;
+						// Ensure we return a string
+						if (typeof response === 'string') return response;
+						return JSON.stringify(response);
 					};
 				}
 			}
