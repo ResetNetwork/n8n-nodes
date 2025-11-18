@@ -333,8 +333,7 @@ export class McpClientExtended implements INodeType {
 										name: 'name',
 										type: 'string',
 										default: '',
-										description: 'Header name (e.g. X-Custom-Header)',
-										placeholder: 'X-Custom-Header',
+										description: 'Header name',
 									},
 									{
 										displayName: 'Value',
@@ -342,7 +341,6 @@ export class McpClientExtended implements INodeType {
 										type: 'string',
 										default: '',
 										description: 'Header value. Supports expressions.',
-										placeholder: '={{ $json.value }}',
 									},
 								],
 							},
