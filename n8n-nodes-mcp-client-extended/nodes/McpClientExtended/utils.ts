@@ -1,4 +1,4 @@
-import { DynamicStructuredTool, type DynamicStructuredToolInput } from '@langchain/core/tools';
+import { DynamicTool } from '@langchain/core/tools';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
@@ -13,7 +13,6 @@ import {
 	type ISupplyDataFunctions,
 	type Result,
 } from 'n8n-workflow';
-import { z } from 'zod';
 
 import type {
 	McpAuthenticationOption,
@@ -27,38 +26,7 @@ const proxyFetch = async (url: string | URL, init?: RequestInit): Promise<Respon
 	return await fetch(url, init);
 };
 
-// Schema parsing helper - simplified for community node
-function convertJsonSchemaToZod(schema: any): z.ZodTypeAny {
-	if (!schema || typeof schema !== 'object') {
-		return z.any();
-	}
-
-	if (schema.type === 'object' && schema.properties) {
-		const shape: Record<string, z.ZodTypeAny> = {};
-		for (const [key, value] of Object.entries(schema.properties as Record<string, any>)) {
-			shape[key] = convertJsonSchemaToZod(value);
-		}
-		return z.object(shape);
-	}
-
-	if (schema.type === 'string') {
-		return z.string();
-	}
-
-	if (schema.type === 'number' || schema.type === 'integer') {
-		return z.number();
-	}
-
-	if (schema.type === 'boolean') {
-		return z.boolean();
-	}
-
-	if (schema.type === 'array') {
-		return z.array(schema.items ? convertJsonSchemaToZod(schema.items) : z.any());
-	}
-
-	return z.any();
-}
+// No longer needed for DynamicTool approach
 
 export async function getAllTools(client: Client, cursor?: string): Promise<McpTool[]> {
 	const { tools, nextCursor } = await client.listTools({ cursor });
@@ -117,7 +85,16 @@ export const getErrorDescriptionFromToolCall = (result: unknown): string | undef
 
 export const createCallTool =
 	(name: string, client: Client, timeout: number, onError: (error: string) => void) =>
-	async (args: IDataObject): Promise<string> => {
+	async (input: string): Promise<string> => {
+		// Parse input as JSON if possible, otherwise use as string
+		let args: IDataObject;
+		try {
+			args = typeof input === 'string' && input.trim().startsWith('{') ? JSON.parse(input) : { input };
+		} catch {
+			// If not valid JSON, treat as a simple object with the input
+			args = { input };
+		}
+
 		let result: Awaited<ReturnType<Client['callTool']>>;
 
 		function handleError(error: unknown): string {
@@ -140,17 +117,11 @@ export const createCallTool =
 		}
 
 		if (result.toolResult !== undefined) {
-			if (typeof result.toolResult === 'string') {
-				return result.toolResult;
-			}
-			return JSON.stringify(result.toolResult);
+			return typeof result.toolResult === 'string' ? result.toolResult : JSON.stringify(result.toolResult);
 		}
 
 		if (result.content !== undefined) {
-			if (typeof result.content === 'string') {
-				return result.content;
-			}
-			return JSON.stringify(result.content);
+			return typeof result.content === 'string' ? result.content : JSON.stringify(result.content);
 		}
 
 		return JSON.stringify(result);
@@ -158,25 +129,34 @@ export const createCallTool =
 
 export function mcpToolToDynamicTool(
 	tool: McpTool,
-	onCallTool: DynamicStructuredToolInput['func'],
-): DynamicStructuredTool {
-	const rawSchema = convertJsonSchemaToZod(tool.inputSchema);
+	onCallTool: (input: string) => Promise<string>,
+): DynamicTool {
+	// Use DynamicTool instead of DynamicStructuredTool for cross-module compatibility
+	// MCP tools accept JSON input, which we'll parse from the string input
+	const description = tool.description ?? `Execute the ${tool.name} tool`;
+	
+	// Add schema information to description if available
+	let enhancedDescription = description;
+	if (tool.inputSchema && typeof tool.inputSchema === 'object') {
+		const schemaProps = (tool.inputSchema as any).properties;
+		if (schemaProps && Object.keys(schemaProps).length > 0) {
+			const params = Object.entries(schemaProps)
+				.map(([key, value]: [string, any]) => `${key}: ${value.description || value.type || 'any'}`)
+				.join(', ');
+			enhancedDescription += ` Parameters: {${params}}. Provide input as JSON string.`;
+		}
+	}
 
-	// Ensure we always have an object schema for structured tools
-	const objectSchema: any =
-		rawSchema instanceof z.ZodObject ? rawSchema : z.object({ value: rawSchema });
-
-	return new DynamicStructuredTool({
+	return new DynamicTool({
 		name: tool.name,
-		description: tool.description ?? '',
-		schema: objectSchema,
+		description: enhancedDescription,
 		func: onCallTool,
 		metadata: { isFromToolkit: true },
 	});
 }
 
 export class McpToolkit extends Toolkit {
-	constructor(public tools: DynamicStructuredTool[]) {
+	constructor(public tools: DynamicTool[]) {
 		super();
 	}
 }
