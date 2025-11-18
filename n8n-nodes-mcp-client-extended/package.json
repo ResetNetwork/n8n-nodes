@@ -29,12 +29,12 @@
   },
   "main": "index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && rm -rf node_modules",
     "dev": "tsc --watch",
     "format": "prettier nodes --write",
     "lint": "echo 'Lint check skipped - no eslint config'",
     "lintfix": "echo 'Lint fix skipped - no eslint config'",
-    "prepublishOnly": "npm run build && npm run lint"
+    "prepublishOnly": "npm install && npm run build && npm run lint"
   },
   "files": [
     "dist"
