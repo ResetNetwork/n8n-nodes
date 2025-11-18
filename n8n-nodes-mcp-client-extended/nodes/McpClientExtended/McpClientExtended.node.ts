@@ -390,19 +390,16 @@ export class McpClientExtended implements INodeType {
 			);
 		}
 
-		// Create tools array - return first tool directly (n8n will handle multiple connections)
+		// Create tools array without logWrapper for now to test invoke
 		const tools = await Promise.all(
 			mcpTools.map(async (tool) =>
-				logWrapper(
-					await mcpToolToDynamicTool(
-						tool,
-						createCallTool(tool.name, client, config.timeout, (errorMessage) => {
-							const error = new NodeOperationError(node, errorMessage, { itemIndex });
-							void this.addOutputData('ai_tool', itemIndex, error);
-							this.logger.error(`McpClientExtended: Tool "${tool.name}" failed to execute`, { error });
-						}),
-					),
-					this,
+				await mcpToolToDynamicTool(
+					tool,
+					createCallTool(tool.name, client, config.timeout, (errorMessage) => {
+						const error = new NodeOperationError(node, errorMessage, { itemIndex });
+						void this.addOutputData('ai_tool', itemIndex, error);
+						this.logger.error(`McpClientExtended: Tool "${tool.name}" failed to execute`, { error });
+					}),
 				),
 			),
 		);
@@ -410,7 +407,6 @@ export class McpClientExtended implements INodeType {
 		this.logger.debug(`McpClientExtended: Connected to MCP Server with ${tools.length} tools`);
 
 		// Return tools array directly - n8n will handle multiple tools
-		// Toolkit causes serialization issues even when from n8n's module
 		return { response: tools, closeFunction: async () => await client.close() };
 	}
 

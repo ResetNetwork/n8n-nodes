@@ -69,6 +69,23 @@ To work with n8n's AI Agents while being a community node:
 
 This ensures tools are created from n8n's @langchain module instances and serialize correctly.
 
+## Known Limitations
+
+### Execute Step Button
+
+The "Execute step" testing/debugging button is currently disabled (`usableAsTool: false`). This feature requires additional work to ensure the `tool.invoke()` method is properly preserved through our tool wrapping mechanism.
+
+**Workaround:** Test tools directly through the AI Agent or use the built-in MCP Client Tool for testing individual tools.
+
+**Status:** Planned for future enhancement
+
+## Roadmap
+
+- [ ] Fix Execute step button to enable direct tool testing
+- [ ] Add support for tool input validation
+- [ ] Enhance error messages for custom header issues
+- [ ] Add header name validation
+
 ## License
 
 MIT
