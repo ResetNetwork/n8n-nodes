@@ -35,7 +35,7 @@
     "lint": "echo 'Lint check skipped - no eslint config'",
     "lintfix": "echo 'Lint fix skipped - no eslint config'",
     "prepublishOnly": "npm run build && npm run lint",
-    "postinstall": "rm -rf node_modules/@langchain node_modules/langchain node_modules/langsmith node_modules/openai node_modules/uuid || true"
+    "postinstall": "rm -rf node_modules/@langchain node_modules/langchain node_modules/langsmith node_modules/@modelcontextprotocol node_modules/openai node_modules/uuid || true"
   },
   "files": [
     "dist"
@@ -48,23 +48,22 @@
   },
   "devDependencies": {
     "@langchain/core": "*",
+    "@modelcontextprotocol/sdk": "*",
     "@types/node": "^20.11.0",
     "@typescript-eslint/parser": "^6.19.0",
     "eslint": "^8.56.0",
     "eslint-plugin-n8n-nodes-base": "^1.16.1",
     "langchain": "*",
-    "n8n-workflow": "^1.118.0",
+    "n8n-workflow": "*",
     "prettier": "^3.2.4",
     "typescript": "^5.3.3"
   },
-  "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.0",
-    "zod": "^3.22.0"
-  },
+  "dependencies": {},
   "peerDependencies": {
     "@langchain/core": "*",
     "langchain": "*",
-    "n8n-workflow": "^1.25.1"
+    "n8n-workflow": "*",
+    "@modelcontextprotocol/sdk": "*"
   },
   "engines": {
     "node": ">=18.0.0"
