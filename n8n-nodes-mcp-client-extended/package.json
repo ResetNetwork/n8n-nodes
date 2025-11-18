@@ -29,7 +29,8 @@
   },
   "main": "index.js",
   "scripts": {
-    "build": "tsc && rm -rf node_modules",
+    "build": "tsc && npm run copy-icons && rm -rf node_modules",
+    "copy-icons": "cp nodes/McpClientExtended/*.svg dist/McpClientExtended/ 2>/dev/null || true",
     "dev": "tsc --watch",
     "format": "prettier nodes --write",
     "lint": "echo 'Lint check skipped - no eslint config'",
