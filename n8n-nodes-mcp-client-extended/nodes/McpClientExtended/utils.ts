@@ -241,7 +241,7 @@ export async function connectMcpClient({
 		return createResultError({ type: 'invalid_url', error: endpoint.error });
 	}
 
-	const client = new Client({ name, version: version.toString() }, { capabilities: {} });
+	const client = new Client({ name, version: version.toString() }, { capabilities: { tools: {} } });
 
 	if (serverTransport === 'httpStreamable') {
 		try {
@@ -266,11 +266,7 @@ export async function connectMcpClient({
 				}
 			}
 
-			// Properly format error
-			const errorObj = error instanceof Error
-				? error
-				: new Error(typeof error === 'string' ? error : JSON.stringify(error));
-			return createResultError({ type: 'connection', error: errorObj });
+			return createResultError({ type: 'connection', error });
 		}
 	}
 
@@ -306,11 +302,7 @@ export async function connectMcpClient({
 			}
 		}
 
-		// Properly format error
-		const errorObj = error instanceof Error
-			? error
-			: new Error(typeof error === 'string' ? error : JSON.stringify(error));
-		return createResultError({ type: 'connection', error: errorObj });
+		return createResultError({ type: 'connection', error });
 	}
 }
 
