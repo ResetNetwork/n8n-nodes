@@ -387,11 +387,9 @@ export class McpClientExtended implements INodeType {
 
 		this.logger.debug(`McpClientExtended: Connected to MCP Server with ${tools.length} tools`);
 
-		// Create toolkit from n8n's langchain module (lazy-loaded)
-		// This will pass instanceof check because Toolkit is from n8n's module
-		const toolkit = await createMcpToolkit(tools);
-
-		return { response: toolkit, closeFunction: async () => await client.close() };
+		// Return tools array directly - n8n will handle multiple tools
+		// Toolkit causes serialization issues even when from n8n's module
+		return { response: tools, closeFunction: async () => await client.close() };
 	}
 
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
