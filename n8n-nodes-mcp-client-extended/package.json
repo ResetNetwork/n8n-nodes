@@ -29,13 +29,14 @@
   },
   "main": "index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && npm run clean-deps",
+    "clean-deps": "rm -rf node_modules/@langchain node_modules/langchain node_modules/langsmith node_modules/@modelcontextprotocol node_modules/pkce-challenge node_modules/openai node_modules/uuid || true",
     "dev": "tsc --watch",
     "format": "prettier nodes --write",
     "lint": "echo 'Lint check skipped - no eslint config'",
     "lintfix": "echo 'Lint fix skipped - no eslint config'",
     "prepublishOnly": "npm run build && npm run lint",
-    "postinstall": "rm -rf node_modules/@langchain node_modules/langchain node_modules/langsmith node_modules/@modelcontextprotocol node_modules/openai node_modules/uuid || true"
+    "postinstall": "npm run clean-deps"
   },
   "files": [
     "dist"
