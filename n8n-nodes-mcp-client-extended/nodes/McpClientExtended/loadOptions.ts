@@ -48,11 +48,18 @@ export async function getTools(this: ILoadOptionsFunctions): Promise<INodeProper
 		throw new NodeOperationError(this.getNode(), 'Could not connect to your MCP server');
 	}
 
-	const tools = await getAllTools(client.result);
-	return tools.map((tool) => ({
-		name: tool.name,
-		value: tool.name,
-		description: tool.description,
-		inputSchema: tool.inputSchema,
-	}));
+	try {
+		const tools = await getAllTools(client.result);
+		return tools.map((tool) => ({
+			name: tool.name,
+			value: tool.name,
+			description: tool.description,
+			inputSchema: tool.inputSchema,
+		}));
+	} finally {
+		// Clean up client connection
+		await client.result.close().catch(() => {
+			// Ignore close errors
+		});
+	}
 }
