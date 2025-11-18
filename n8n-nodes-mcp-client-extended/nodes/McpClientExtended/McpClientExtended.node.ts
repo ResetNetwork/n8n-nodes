@@ -11,10 +11,10 @@ import {
 	type SupplyData,
 } from 'n8n-workflow';
 
-import { logWrapper } from './logWrapper';
-
 import { transportSelect } from './descriptions';
 import { getTools } from './loadOptions';
+import { logWrapper } from './logWrapper';
+import { getConnectionHintNoticeField } from './sharedFields';
 import type { McpServerTransport, McpAuthenticationOption, McpToolIncludeMode } from './types';
 import {
 	connectMcpClient,
@@ -24,6 +24,7 @@ import {
 	getSelectedTools,
 	McpToolkit,
 	mcpToolToDynamicTool,
+	mergeCustomHeaders,
 	tryRefreshOAuth2Token,
 } from './utils';
 
@@ -41,36 +42,26 @@ function getNodeConfig(
 	mode: McpToolIncludeMode;
 	includeTools: string[];
 	excludeTools: string[];
-	customHeaders?: Record<string, string>;
+	customHeaders?: IDataObject;
 } {
 	const authentication = ctx.getNodeParameter(
 		'authentication',
 		itemIndex,
 	) as McpAuthenticationOption;
 	const timeout = ctx.getNodeParameter('options.timeout', itemIndex, 60000) as number;
+
 	const serverTransport = ctx.getNodeParameter('serverTransport', itemIndex) as McpServerTransport;
 	const endpointUrl = ctx.getNodeParameter('endpointUrl', itemIndex) as string;
+
 	const mode = ctx.getNodeParameter('include', itemIndex) as McpToolIncludeMode;
 	const includeTools = ctx.getNodeParameter('includeTools', itemIndex, []) as string[];
 	const excludeTools = ctx.getNodeParameter('excludeTools', itemIndex, []) as string[];
 
-	// Get custom headers and evaluate expressions
-	const headersParam = ctx.getNodeParameter('customHeaders.headers', itemIndex, []) as Array<{
-		name: string;
-		value: string;
-	}>;
-
-	const customHeaders: Record<string, string> = {};
-	for (const header of headersParam) {
-		// Evaluate expressions in header name and value
-		// getNodeParameter already evaluates expressions, but we ensure non-empty strings
-		const headerName = typeof header.name === 'string' ? header.name.trim() : '';
-		const headerValue = typeof header.value === 'string' ? String(header.value).trim() : String(header.value || '').trim();
-		
-		// Only add header if both name and value are non-empty
-		if (headerName && headerValue) {
-			customHeaders[headerName] = headerValue;
-		}
+	// Get custom headers if enabled
+	const customHeadersEnabled = ctx.getNodeParameter('options.customHeadersEnabled', itemIndex, false) as boolean;
+	let customHeaders;
+	if (customHeadersEnabled) {
+		customHeaders = ctx.getNodeParameter('options.customHeaders', itemIndex, {}) as IDataObject;
 	}
 
 	return {
@@ -81,7 +72,7 @@ function getNodeConfig(
 		mode,
 		includeTools,
 		excludeTools,
-		customHeaders: Object.keys(customHeaders).length > 0 ? customHeaders : undefined,
+		customHeaders,
 	};
 }
 
@@ -93,12 +84,10 @@ async function connectAndGetTools(
 	config: ReturnType<typeof getNodeConfig>,
 ) {
 	const node = ctx.getNode();
-
-	// Get auth headers
 	const { headers: authHeaders } = await getAuthHeaders(ctx, config.authentication);
 
-	// Merge with custom headers (custom headers override auth headers)
-	const headers = { ...authHeaders, ...config.customHeaders };
+	// Merge custom headers with auth headers
+	const headers = mergeCustomHeaders(authHeaders, config.customHeaders);
 
 	const client = await connectMcpClient({
 		serverTransport: config.serverTransport,
@@ -135,7 +124,7 @@ export class McpClientExtended implements INodeType {
 		},
 		group: ['output'],
 		version: 1,
-		description: 'Connect tools from an MCP Server with dynamic headers support',
+		description: 'Connect tools from an MCP Server with custom headers support',
 		defaults: {
 			name: 'MCP Client Extended',
 		},
@@ -144,7 +133,7 @@ export class McpClientExtended implements INodeType {
 			subcategories: {
 				AI: ['Model Context Protocol', 'Tools'],
 			},
-			alias: ['Model Context Protocol', 'MCP Client'],
+			alias: ['Model Context Protocol', 'MCP Client', 'Custom Headers'],
 		},
 		inputs: [],
 		outputs: [{ type: NodeConnectionType.AiTool, displayName: 'Tools' }],
@@ -187,6 +176,7 @@ export class McpClientExtended implements INodeType {
 			},
 		],
 		properties: [
+			getConnectionHintNoticeField([NodeConnectionType.AiAgent]),
 			{
 				displayName: 'Endpoint',
 				name: 'endpointUrl',
@@ -198,9 +188,7 @@ export class McpClientExtended implements INodeType {
 			},
 			transportSelect({
 				defaultOption: 'httpStreamable',
-				displayOptions: {
-					show: {},
-				},
+				displayOptions: { show: {} },
 			}),
 			{
 				displayName: 'Authentication',
@@ -243,41 +231,6 @@ export class McpClientExtended implements INodeType {
 				},
 			},
 			{
-				displayName: 'Custom Headers',
-				name: 'customHeaders',
-				type: 'fixedCollection',
-				default: {},
-				placeholder: 'Add Header',
-				description: 'Additional headers to send with MCP requests',
-				options: [
-					{
-						name: 'headers',
-						displayName: 'Headers',
-						values: [
-							{
-								displayName: 'Name',
-								name: 'name',
-								type: 'string',
-								default: '',
-								placeholder: 'X-API-Key',
-								description: 'Header name',
-							},
-							{
-								displayName: 'Value',
-								name: 'value',
-								type: 'string',
-								default: '',
-								placeholder: 'your-api-key-value',
-								description: 'Header value (supports expressions)',
-							},
-						],
-					},
-				],
-				typeOptions: {
-					multipleValues: true,
-				},
-			},
-			{
 				displayName: 'Tools to Include',
 				name: 'include',
 				type: 'options',
@@ -292,12 +245,12 @@ export class McpClientExtended implements INodeType {
 					{
 						name: 'Selected',
 						value: 'selected',
-						description: 'Include only the tools listed in "Tools to Include"',
+						description: 'Include only the tools listed in the parameter "Tools to Include"',
 					},
 					{
 						name: 'All Except',
 						value: 'except',
-						description: 'Exclude the tools listed in "Tools to Exclude"',
+						description: 'Exclude the tools listed in the parameter "Tools to Exclude"',
 					},
 				],
 			},
@@ -351,6 +304,26 @@ export class McpClientExtended implements INodeType {
 						default: 60000,
 						description: 'Time in ms to wait for tool calls to finish',
 					},
+					{
+						displayName: 'Enable Custom Headers',
+						name: 'customHeadersEnabled',
+						type: 'boolean',
+						default: false,
+						description: 'Whether to add custom headers to the MCP server requests',
+					},
+					{
+						displayName: 'Custom Headers',
+						name: 'customHeaders',
+						type: 'json',
+						default: '{}',
+						description: 'Custom headers to send with the request. Can use expressions for dynamic values.',
+						hint: 'Add custom headers as a JSON object, e.g. {"X-Custom-Header": "value", "X-Request-ID": "{{ $json.id }}"}',
+						displayOptions: {
+							show: {
+								customHeadersEnabled: [true],
+							},
+						},
+					},
 				],
 			},
 		],
@@ -401,7 +374,7 @@ export class McpClientExtended implements INodeType {
 					tool,
 					createCallTool(tool.name, client, config.timeout, (errorMessage) => {
 						const error = new NodeOperationError(node, errorMessage, { itemIndex });
-						this.addOutputData(NodeConnectionType.AiTool, itemIndex, error);
+						void this.addOutputData(NodeConnectionType.AiTool, itemIndex, error);
 						this.logger.error(`McpClientExtended: Tool "${tool.name}" failed to execute`, { error });
 					}),
 				),

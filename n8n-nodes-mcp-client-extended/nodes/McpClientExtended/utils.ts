@@ -14,6 +14,7 @@ import {
 	type Result,
 } from 'n8n-workflow';
 import { z } from 'zod';
+
 import type {
 	McpAuthenticationOption,
 	McpServerTransport,
@@ -21,49 +22,39 @@ import type {
 	McpToolIncludeMode,
 } from './types';
 
-// Type for OAuth2 token data (instead of importing from @n8n/client-oauth2)
-type ClientOAuth2TokenData = {
-	access_token: string;
-	[key: string]: any;
+// Proxy fetch - simplified version for community node
+const proxyFetch = async (url: string | URL, init?: RequestInit): Promise<Response> => {
+	return await fetch(url, init);
 };
 
-// Note: In a real implementation, this would import from @utils/httpProxyAgent
-// For community nodes, we'll use the standard fetch
-const proxyFetch = fetch;
-
-// Note: In a real implementation, this would import from @utils/schemaParsing
-// For community nodes, we'll include a simple converter
-function convertJsonSchemaToZod(schema: any): z.ZodType {
+// Schema parsing helper - simplified for community node
+function convertJsonSchemaToZod(schema: any): z.ZodTypeAny {
 	if (!schema || typeof schema !== 'object') {
 		return z.any();
 	}
 
-	if (schema.type === 'object') {
-		const shape: Record<string, z.ZodType> = {};
-		if (schema.properties) {
-			for (const [key, prop] of Object.entries(schema.properties)) {
-				let zodType = convertJsonSchemaToZod(prop);
-				const propSchema = prop as any;
-
-				// Handle required fields
-				const required = schema.required?.includes(key);
-				if (!required) {
-					zodType = zodType.optional();
-				}
-
-				shape[key] = zodType;
-			}
+	if (schema.type === 'object' && schema.properties) {
+		const shape: Record<string, z.ZodTypeAny> = {};
+		for (const [key, value] of Object.entries(schema.properties as Record<string, any>)) {
+			shape[key] = convertJsonSchemaToZod(value);
 		}
 		return z.object(shape);
 	}
 
-	if (schema.type === 'string') return z.string();
-	if (schema.type === 'number') return z.number();
-	if (schema.type === 'integer') return z.number().int();
-	if (schema.type === 'boolean') return z.boolean();
+	if (schema.type === 'string') {
+		return z.string();
+	}
+
+	if (schema.type === 'number' || schema.type === 'integer') {
+		return z.number();
+	}
+
+	if (schema.type === 'boolean') {
+		return z.boolean();
+	}
+
 	if (schema.type === 'array') {
-		const items = schema.items ? convertJsonSchemaToZod(schema.items) : z.any();
-		return z.array(items);
+		return z.array(schema.items ? convertJsonSchemaToZod(schema.items) : z.any());
 	}
 
 	return z.any();
@@ -126,10 +117,10 @@ export const getErrorDescriptionFromToolCall = (result: unknown): string | undef
 
 export const createCallTool =
 	(name: string, client: Client, timeout: number, onError: (error: string) => void) =>
-	async (args: IDataObject) => {
+	async (args: IDataObject): Promise<string> => {
 		let result: Awaited<ReturnType<Client['callTool']>>;
 
-		function handleError(error: unknown) {
+		function handleError(error: unknown): string {
 			const errorDescription =
 				getErrorDescriptionFromToolCall(error) ?? `Failed to execute tool "${name}"`;
 			onError(errorDescription);
@@ -149,14 +140,14 @@ export const createCallTool =
 		}
 
 		if (result.toolResult !== undefined) {
-			return result.toolResult;
+			return typeof result.toolResult === 'string' ? result.toolResult : JSON.stringify(result.toolResult);
 		}
 
 		if (result.content !== undefined) {
-			return result.content;
+			return typeof result.content === 'string' ? result.content : JSON.stringify(result.content);
 		}
 
-		return result;
+		return JSON.stringify(result);
 	};
 
 export function mcpToolToDynamicTool(
@@ -188,7 +179,7 @@ function safeCreateUrl(url: string, baseUrl?: string | URL): Result<URL, Error> 
 	try {
 		return createResultOk(new URL(url, baseUrl));
 	} catch (error) {
-		return createResultError(error as Error);
+		return createResultError(error instanceof Error ? error : new Error(String(error)));
 	}
 }
 
@@ -197,7 +188,7 @@ function normalizeAndValidateUrl(input: string): Result<URL, Error> {
 	const parsedUrl = safeCreateUrl(withProtocol);
 
 	if (!parsedUrl.ok) {
-		return createResultError(parsedUrl.error as Error);
+		return createResultError(parsedUrl.error);
 	}
 
 	return parsedUrl;
@@ -241,7 +232,7 @@ export async function connectMcpClient({
 		return createResultError({ type: 'invalid_url', error: endpoint.error });
 	}
 
-	const client = new Client({ name, version: version.toString() }, { capabilities: { tools: {} } });
+	const client = new Client({ name, version: version.toString() }, { capabilities: {} });
 
 	if (serverTransport === 'httpStreamable') {
 		try {
@@ -266,7 +257,7 @@ export async function connectMcpClient({
 				}
 			}
 
-			return createResultError({ type: 'connection', error });
+			return createResultError({ type: 'connection', error: error instanceof Error ? error : new Error(String(error)) });
 		}
 	}
 
@@ -302,12 +293,15 @@ export async function connectMcpClient({
 			}
 		}
 
-		return createResultError({ type: 'connection', error });
+		return createResultError({ type: 'connection', error: error instanceof Error ? error : new Error(String(error)) });
 	}
 }
 
+/**
+ * Get authentication headers from credentials
+ */
 export async function getAuthHeaders(
-	ctx: IExecuteFunctions | ISupplyDataFunctions | ILoadOptionsFunctions,
+	ctx: Pick<IExecuteFunctions, 'getCredentials'>,
 	authentication: McpAuthenticationOption,
 ): Promise<{ headers?: Record<string, string> }> {
 	switch (authentication) {
@@ -365,7 +359,33 @@ export async function getAuthHeaders(
 }
 
 /**
- * Tries to refresh the OAuth2 token, storing them in the database if successful
+ * Get custom headers from node parameters and merge with auth headers
+ * Custom headers take precedence over auth headers
+ */
+export function mergeCustomHeaders(
+	authHeaders: Record<string, string> | undefined,
+	customHeaders: IDataObject | undefined,
+): Record<string, string> | undefined {
+	if (!customHeaders || Object.keys(customHeaders).length === 0) {
+		return authHeaders;
+	}
+
+	const merged: Record<string, string> = { ...(authHeaders || {}) };
+
+	for (const [key, value] of Object.entries(customHeaders)) {
+		if (typeof value === 'string') {
+			merged[key] = value;
+		} else if (value !== null && value !== undefined) {
+			merged[key] = String(value);
+		}
+	}
+
+	return merged;
+}
+
+/**
+ * Tries to refresh the OAuth2 token
+ * Note: This is simplified for community nodes as full OAuth2 refresh may not be available
  * @param ctx - The execution context
  * @param authentication - The authentication method
  * @param headers - The headers to refresh
@@ -376,11 +396,14 @@ export async function tryRefreshOAuth2Token(
 	authentication: McpAuthenticationOption,
 	headers?: Record<string, string>,
 ) {
+	// For community nodes, OAuth2 refresh might not be available
+	// Return null to indicate refresh is not possible
 	if (authentication !== 'mcpOAuth2Api') {
 		return null;
 	}
 
-	// OAuth2 token refresh might not be available in all contexts
-	// This is expected for community nodes
+	// In community nodes, we might not have access to refreshOAuth2Token
+	// Return null to let the connection fail naturally
 	return null;
 }
+

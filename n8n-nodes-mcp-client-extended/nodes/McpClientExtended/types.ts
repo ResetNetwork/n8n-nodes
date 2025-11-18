@@ -12,3 +12,4 @@ export type McpAuthenticationOption =
 	| 'bearerAuth'
 	| 'mcpOAuth2Api'
 	| 'multipleHeadersAuth';
+

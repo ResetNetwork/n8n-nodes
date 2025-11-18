@@ -5,15 +5,27 @@ import {
 } from 'n8n-workflow';
 
 import type { McpAuthenticationOption, McpServerTransport } from './types';
-import { connectMcpClient, getAllTools, getAuthHeaders, tryRefreshOAuth2Token } from './utils';
+import { connectMcpClient, getAllTools, getAuthHeaders, mergeCustomHeaders, tryRefreshOAuth2Token } from './utils';
 
 export async function getTools(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
 	const authentication = this.getNodeParameter('authentication') as McpAuthenticationOption;
 	const node = this.getNode();
+	
 	const serverTransport = this.getNodeParameter('serverTransport') as McpServerTransport;
 	const endpointUrl = this.getNodeParameter('endpointUrl') as string;
-
-	const { headers } = await getAuthHeaders(this, authentication);
+	
+	const { headers: authHeaders } = await getAuthHeaders(this, authentication);
+	
+	// Get custom headers if specified
+	const customHeadersEnabled = this.getNodeParameter('options.customHeadersEnabled', false) as boolean;
+	let customHeaders;
+	if (customHeadersEnabled) {
+		customHeaders = this.getNodeParameter('options.customHeaders', {}) as Record<string, string>;
+	}
+	
+	// Merge custom headers with auth headers
+	const headers = mergeCustomHeaders(authHeaders, customHeaders);
+	
 	const client = await connectMcpClient({
 		serverTransport,
 		endpointUrl,

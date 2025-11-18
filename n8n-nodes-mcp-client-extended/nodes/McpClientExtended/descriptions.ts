@@ -24,3 +24,4 @@ export const transportSelect = ({
 	description: 'The transport used by your endpoint',
 	displayOptions,
 });
+

@@ -1,8 +1,0 @@
-node_modules/
-nodes/
-tsconfig.json
-.eslintrc.js
-.eslintrc.prepublish.json
-eslint.config.js
-*.ts
-!dist/**/*.d.ts
