@@ -1,7 +1,47 @@
 # MCP Client Extended - Current Issues & Status
 
-**Last Updated:** 2025-01-27
-**Status:** Fixed - Core issues resolved, ready for testing
+**Last Updated:** 2025-11-18 (Evening Update)
+**Status:** FIXED - Critical issues resolved, ready for testing
+
+---
+
+## 🔧 CRITICAL FIXES APPLIED (2025-11-18 Evening)
+
+### Issue #1: Client Capabilities Missing `tools: {}`
+**Problem:** The MCP Client was initialized with empty capabilities `{}` instead of `{ tools: {} }`.
+**Impact:** MCP servers might not properly recognize the client as supporting tool operations.
+**Fix Applied:** Changed line 244 in `utils.ts`:
+```typescript
+// Before:
+const client = new Client({ name, version: version.toString() }, { capabilities: {} });
+
+// After:
+const client = new Client({ name, version: version.toString() }, { capabilities: { tools: {} } });
+```
+**Result:** Client now properly declares tool capabilities to MCP servers.
+
+### Issue #2: Error Objects Being Serialized as Empty
+**Problem:** Errors were being wrapped in `new Error(JSON.stringify(error))`, which loses all error properties and creates empty `{}` objects.
+**Impact:** Debugging was impossible as error details were lost. Logs showed `"error": { "error": { } }` with no useful information.
+**Fix Applied:** Removed error wrapping in both HTTP Streamable and SSE transport error handlers (lines 254-273 and 290-307 in `utils.ts`):
+```typescript
+// Before:
+const errorObj = error instanceof Error
+    ? error
+    : new Error(typeof error === 'string' ? error : JSON.stringify(error));
+return createResultError({ type: 'connection', error: errorObj });
+
+// After:
+return createResultError({ type: 'connection', error });
+```
+**Result:** Error objects now preserve all their properties and stack traces for proper debugging.
+
+### Verification
+- ✅ Code builds successfully with `npm run build`
+- ✅ No linter errors
+- ✅ Successfully deployed to n8n via `setup-local.sh`
+- ✅ Changes committed to git with descriptive commit message
+- ✅ Matches n8n reference implementation pattern from `packages/@n8n/nodes-langchain/nodes/mcp/McpClientTool/`
 
 ---
 
@@ -42,17 +82,6 @@ Add custom header support to n8n's MCP Client Tool to allow sending additional h
 ### 5. **Build Issues** (FIXED)
 - ✅ Removed jest types from tsconfig (was causing build errors)
 - ✅ Package builds successfully with `npm run build`
-
-### 6. **logWrapper Method Interception** (FIXED - 2025-01-27)
-- ✅ Fixed logWrapper to intercept `invoke` method instead of `_call`/`call`
-- ✅ DynamicStructuredTool from langchain uses `invoke` method, not `_call` or `call`
-- ✅ Added proper handling for `invoke` method signature (takes object input, returns result)
-- ✅ Maintained backward compatibility with legacy `_call`/`call` methods
-
-### 7. **Header Expression Evaluation** (IMPROVED - 2025-01-27)
-- ✅ Improved header extraction to handle edge cases
-- ✅ Added proper trimming and type checking for header names and values
-- ✅ Ensured expressions are properly evaluated (getNodeParameter handles this automatically)
 
 ---
 
