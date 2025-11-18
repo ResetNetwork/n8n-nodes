@@ -118,6 +118,11 @@ export function logWrapper<T extends object>(originalInstance: T, executeFunctio
 				}
 			}
 
+			// For other properties (including invoke), return the original value
+			// but bind it if it's a function to maintain proper context
+			if (typeof originalValue === 'function') {
+				return originalValue.bind(target);
+			}
 			return originalValue;
 		},
 	});
