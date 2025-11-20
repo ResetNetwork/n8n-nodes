@@ -1,12 +1,17 @@
 import {
-	ISupplyDataFunctions,
-	INodeType,
-	INodeTypeDescription,
-	SupplyData,
-	NodeConnectionType,
-	ILoadOptionsFunctions,
-	INodePropertyOptions,
+	type INodeType,
+	type INodeTypeDescription,
+	type ISupplyDataFunctions,
+	type SupplyData,
+	type ILoadOptionsFunctions,
+	type INodePropertyOptions,
 } from 'n8n-workflow';
+
+// Define connection types as constants to match runtime behavior
+const NodeConnectionType = {
+	AiEmbedding: 'ai_embedding',
+	AiVectorStore: 'ai_vectorStore',
+} as const;
 
 import { VertexAIEmbeddings } from '@langchain/google-vertexai';
 import { logWrapper } from '../../utils/logWrapper';
@@ -42,8 +47,8 @@ export class EmbeddingsGoogleVertexExtended implements INodeType {
 		],
 		// This is a sub-node, it has no inputs
 		inputs: [],
-		// And it supplies data to the root node
-		outputs: [NodeConnectionType.AiEmbedding],
+        // And it supplies data to the root node
+        outputs: [NodeConnectionType.AiEmbedding],
 		outputNames: ['Embeddings'],
 		properties: [
 			{
@@ -63,7 +68,7 @@ export class EmbeddingsGoogleVertexExtended implements INodeType {
 				type: 'string',
 				description:
 					'The model to use for generating embeddings. <a href="https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/text-embeddings-api">Learn more</a>.',
-				default: 'text-embedding-004',
+				default: 'gemini-embedding-001',
 				placeholder: 'e.g. text-embedding-004, text-multilingual-embedding-002',
 			},
 			{

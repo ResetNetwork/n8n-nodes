@@ -1,11 +1,11 @@
-import { ISupplyDataFunctions, NodeConnectionType, NodeOperationError } from 'n8n-workflow';
+import { ISupplyDataFunctions, NodeOperationError, NodeConnectionTypes } from 'n8n-workflow';
 import { TextSplitter } from '@langchain/textsplitters';
 
 async function callMethodAsync<T>(
 	this: T,
 	parameters: {
 		executeFunctions: ISupplyDataFunctions;
-		connectionType: NodeConnectionType;
+		connectionType: any;
 		currentNodeRunIndex: number;
 		method: (...args: any[]) => Promise<unknown>;
 		arguments: unknown[];
@@ -32,24 +32,27 @@ function logAiEvent(executeFunctions: ISupplyDataFunctions, eventType: string): 
 }
 
 export function logWrapper<T extends object>(originalInstance: T, executeFunctions: ISupplyDataFunctions): T {
-	console.log('LogWrapper: Wrapping instance of type:', originalInstance.constructor.name);
+    const debugEnabled = process.env.N8N_NODES_DEBUG === '1' || process.env.N8N_NODES_DEBUG === 'true';
+    
+    if (debugEnabled) {
+        console.log('LogWrapper: Wrapping instance of type:', originalInstance.constructor.name);
+    }
 	
 	return new Proxy(originalInstance, {
 		get(target, prop, receiver) {
 			const originalValue = Reflect.get(target, prop, receiver);
 			
-			// Log all method calls for debugging
-			if (typeof originalValue === 'function' && typeof prop === 'string') {
-				console.log('LogWrapper: Method accessed:', prop);
+			// Log all method calls for debugging (only when debug enabled)
+            if (debugEnabled && typeof originalValue === 'function' && typeof prop === 'string') {
+                console.log('LogWrapper: Method accessed:', prop);
 			}
 
-			// Handle TextSplitter specifically
+			// Handle TextSplitter specifically - match n8n's built-in logWrapper exactly
 			if (originalInstance instanceof TextSplitter) {
 				if (prop === 'splitText' && 'splitText' in target) {
-					return async (text: string): Promise<string[]> => {
-						console.log('LogWrapper: splitText intercepted, text length:', text?.length || 0);
-						const connectionType = NodeConnectionType.AiTextSplitter;
-
+                    return async (text: string): Promise<string[]> => {
+                        const connectionType = NodeConnectionTypes.AiTextSplitter;
+                        
 						// Log input data
 						const { index } = executeFunctions.addInputData(connectionType, [
 							[{ json: { textSplitter: text } }],
@@ -64,47 +67,12 @@ export function logWrapper<T extends object>(originalInstance: T, executeFunctio
 							arguments: [text],
 						})) as string[];
 
-						console.log('LogWrapper: splitText completed, chunks:', response?.length || 0);
-
 						// Log AI event
 						logAiEvent(executeFunctions, 'ai-text-split');
 
 						// Log output data
 						executeFunctions.addOutputData(connectionType, index, [
 							[{ json: { response } }],
-						]);
-
-						return response;
-					};
-				}
-
-				if (prop === 'splitDocuments' && 'splitDocuments' in target) {
-					return async (documents: any[]): Promise<any[]> => {
-						console.log('LogWrapper: splitDocuments intercepted, docs:', documents?.length || 0);
-						const connectionType = NodeConnectionType.AiTextSplitter;
-
-						// Log input data
-						const { index } = executeFunctions.addInputData(connectionType, [
-							[{ json: { documents: documents.length } }],
-						]);
-
-						// Call the original method with proper error handling
-						const response = (await callMethodAsync.call(target, {
-							executeFunctions,
-							connectionType,
-							currentNodeRunIndex: index,
-							method: target[prop as keyof typeof target] as (...args: any[]) => Promise<unknown>,
-							arguments: [documents],
-						})) as any[];
-
-						console.log('LogWrapper: splitDocuments completed, chunks:', response?.length || 0);
-
-						// Log AI event
-						logAiEvent(executeFunctions, 'ai-text-split');
-
-						// Log output data
-						executeFunctions.addOutputData(connectionType, index, [
-							[{ json: { response: response.length } }],
 						]);
 
 						return response;

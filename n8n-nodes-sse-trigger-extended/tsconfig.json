@@ -1,0 +1,29 @@
+{
+	"compilerOptions": {
+		"module": "commonjs",
+		"target": "es2019",
+		"lib": [
+			"es2019"
+		],
+		"declaration": true,
+		"outDir": "./dist",
+		"rootDir": "./",
+		"strict": true,
+		"noImplicitAny": true,
+		"experimentalDecorators": true,
+		"emitDecoratorMetadata": true,
+		"skipLibCheck": true,
+		"esModuleInterop": true,
+		"resolveJsonModule": true,
+		"moduleResolution": "node",
+		"noUnusedLocals": true,
+		"noUnusedParameters": true
+	},
+	"include": [
+		"nodes/**/*"
+	],
+	"exclude": [
+		"node_modules/**/*",
+		"dist/**/*"
+	]
+}

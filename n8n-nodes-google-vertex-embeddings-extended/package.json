@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-google-vertex-embeddings-extended",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "n8n community sub-node for Google Vertex AI Embeddings with output dimensions and configurable batch size support - resolves LangChain compatibility issues",
   "keywords": [
     "n8n-community-node-package",
@@ -55,15 +55,15 @@
     "@typescript-eslint/parser": "^8.15.0",
     "eslint": "^8.57.1",
     "eslint-plugin-n8n-nodes-base": "^1.16.1",
-    "n8n-workflow": "^1.82.0",
-    "prettier": "^3.3.3",
-    "typescript": "^5.5.4"
+    "n8n-workflow": "^1.113.0",
+    "prettier": "^3.2.4",
+    "typescript": "^5.3.3"
   },
   "dependencies": {
     "google-auth-library": "^9.15.0"
   },
   "peerDependencies": {
-    "@langchain/google-vertexai": "^0.2.10",
-    "n8n-workflow": "^1.82.0"
+    "@langchain/google-vertexai": "*",
+    "n8n-workflow": "^1.113.0"
   }
 }

@@ -141,3 +141,6 @@ test-*.json
 *.test.js
 *.test.ts 
 n8n-reference/
+
+# Turborepo cache
+.turbo/

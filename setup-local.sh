@@ -7,12 +7,19 @@ set -e  # Exit on error
 
 echo "🚀 Setting up n8n custom nodes for local development..."
 
-# Check if n8n is installed
+# Ensure n8n is installed and up to date
 if ! command -v n8n &> /dev/null; then
-    echo "❌ n8n is not installed globally. Installing n8n..."
-    npm install n8n -g
+    echo "❌ n8n is not installed globally. Installing latest n8n..."
+    npm install -g n8n@latest
 else
-    echo "✅ n8n is already installed"
+    CURRENT_N8N_VERSION=$(n8n -v 2>/dev/null | head -n1 | sed -E 's#^.*/##')
+    LATEST_N8N_VERSION=$(npm view n8n version 2>/dev/null || echo "")
+    if [ -n "$LATEST_N8N_VERSION" ] && [ "$CURRENT_N8N_VERSION" != "$LATEST_N8N_VERSION" ]; then
+        echo "⬆️  Updating n8n from $CURRENT_N8N_VERSION to $LATEST_N8N_VERSION..."
+        npm install -g n8n@latest
+    else
+        echo "✅ n8n is up to date (version: ${CURRENT_N8N_VERSION:-unknown})"
+    fi
 fi
 
 # Get the current directory (absolute path)
@@ -27,6 +34,8 @@ NODE_DIRS=(
     "n8n-nodes-semantic-splitter-with-context"
     "n8n-nodes-query-retriever-rerank"
     "n8n-nodes-mcp-client-extended"
+    "n8n-nodes-sse-trigger-extended"
+    "n8n-nodes-recursive-language-model"
 )
 
 # Function to check and fix package structure
@@ -59,18 +68,21 @@ check_and_fix_package() {
 check_build() {
     local dir="$1"
     echo "    Checking build for $dir..."
-    if npm run build > /dev/null 2>&1; then
+    if npm run build > build.log 2>&1; then
         echo "    ✅ Build successful"
         return 0
     else
-        echo "    ⚠️  Build failed, attempting to install missing dependencies..."
+        echo "    ⚠️  Build failed. Showing last 40 lines of build.log:"
+        tail -n 40 build.log || true
+        echo "    ⚠️  Attempting to install common missing dependencies..."
         # Try to install common missing dependencies
         npm install @types/node @langchain/google-genai --save-dev > /dev/null 2>&1 || true
-        if npm run build > /dev/null 2>&1; then
+        if npm run build >> build.log 2>&1; then
             echo "    ✅ Build successful after installing dependencies"
             return 0
         else
             echo "    ❌ Build still failing, skipping this node"
+            echo "    ℹ️  See $ROOT_DIR/$dir/build.log for full details"
             return 1
         fi
     fi

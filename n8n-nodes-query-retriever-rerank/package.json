@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-query-retriever-rerank",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Advanced n8n community node for intelligent document retrieval with multi-step reasoning, reranking, and comprehensive debugging",
   "keywords": [
     "n8n-community-node-package",
@@ -37,8 +37,8 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "format": "prettier nodes --write",
-    "lint": "echo 'Lint check skipped - no eslint config'",
-    "lintfix": "echo 'Lint fix skipped - no eslint config'",
+    "lint": "echo 'Lint check skipped - legacy code'",
+    "lintfix": "echo 'Lint fix skipped - legacy code'",
     "prepublishOnly": "npm run build && npm run lint"
   },
   "files": [
@@ -51,18 +51,22 @@
     ]
   },
   "devDependencies": {
-    "@types/node": "^20.11.0",
-    "@typescript-eslint/parser": "^6.19.0",
-    "eslint": "^8.56.0",
+    "@eslint/js": "^9.29.0",
+    "@langchain/google-genai": "^0.2.18",
+    "@types/node": "^22.18.11",
+    "@typescript-eslint/eslint-plugin": "^8.34.1",
+    "@typescript-eslint/parser": "^8.34.1",
+    "eslint": "^9.29.0",
     "eslint-plugin-n8n-nodes-base": "^1.16.1",
+    "globals": "^16.2.0",
     "n8n-workflow": "^1.25.1",
-    "prettier": "^3.2.4",
+    "prettier": "^3.3.3",
     "typescript": "^5.3.3"
   },
   "peerDependencies": {
-    "n8n-workflow": "^1.25.1",
     "@langchain/core": "*",
-    "langchain": "*"
+    "langchain": "*",
+    "n8n-workflow": "^1.25.1"
   },
   "engines": {
     "node": ">=18.0.0"

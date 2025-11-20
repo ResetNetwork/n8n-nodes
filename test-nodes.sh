@@ -10,7 +10,11 @@ export N8N_CUSTOM_EXTENSIONS="$HOME/.n8n/custom"
 
 # Start n8n in the background and capture output
 echo "🚀 Starting n8n to test node loading..."
-n8n start > n8n_test_output.log 2>&1 &
+if command -v timeout >/dev/null 2>&1; then
+    timeout 10s n8n start > n8n_test_output.log 2>&1 &
+else
+    n8n start > n8n_test_output.log 2>&1 &
+fi
 N8N_PID=$!
 
 # Wait a bit for n8n to start
@@ -58,6 +62,16 @@ if grep -q "n8n-nodes-mcp-client-extended" n8n_test_output.log; then
     ((NODES_FOUND++))
 fi
 
+if grep -q "n8n-nodes-sse-trigger-extended" n8n_test_output.log; then
+    echo "  ✅ SSE Trigger Extended found"
+    ((NODES_FOUND++))
+fi
+
+if grep -q "n8n-nodes-recursive-language-model" n8n_test_output.log; then
+    echo "  ✅ Recursive Language Model found"
+    ((NODES_FOUND++))
+fi
+
 # Check for any loading errors
 if grep -i "error" n8n_test_output.log | grep -v "No encryption key" | grep -v "SIGTERM"; then
     echo "⚠️  Potential errors found in logs:"
@@ -66,9 +80,9 @@ fi
 
 echo ""
 echo "📊 Test Results:"
-echo "  Nodes detected in logs: $NODES_FOUND/6"
+echo "  Nodes detected in logs: $NODES_FOUND/8"
 
-if [ $NODES_FOUND -eq 6 ]; then
+if [ $NODES_FOUND -eq 8 ]; then
     echo "  🎉 All nodes appear to be loading correctly!"
 elif [ $NODES_FOUND -gt 0 ]; then
     echo "  ⚠️  Some nodes may not be loading properly"

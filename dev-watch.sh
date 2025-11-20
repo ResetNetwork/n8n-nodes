@@ -24,6 +24,7 @@ NODE_DIRS=(
     "n8n-nodes-google-gemini-embeddings-extended"
     "n8n-nodes-google-vertex-embeddings-extended"
     "n8n-nodes-query-retriever-rerank"
+    "n8n-nodes-sse-trigger-extended"
 )
 
 # Check if all directories exist

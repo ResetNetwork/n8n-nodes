@@ -1,7 +1,7 @@
-import { INodeProperties, NodeConnectionType } from 'n8n-workflow';
+import { INodeProperties } from 'n8n-workflow';
 
 export function getConnectionHintNoticeField(
-	connectionTypes: NodeConnectionType[],
+    connectionTypes: string[],
 ): INodeProperties {
 	return {
 		displayName: '',
@@ -14,24 +14,24 @@ export function getConnectionHintNoticeField(
 			},
 		},
 		typeOptions: {
-			message: `This node can be connected to ${connectionTypes
-				.map((type) => {
-					switch (type) {
-						case NodeConnectionType.AiVectorStore:
-							return 'Vector Store';
-						case NodeConnectionType.AiAgent:
-							return 'AI Agent';
-						case NodeConnectionType.AiChain:
-							return 'AI Chain';
-						case NodeConnectionType.AiLanguageModel:
-							return 'Language Model';
-						case NodeConnectionType.AiEmbedding:
-							return 'Embeddings';
-						default:
-							return type;
-					}
-				})
-				.join(', ')} nodes`,
+            message: `This node can be connected to ${connectionTypes
+                .map((type) => {
+                    switch (type) {
+                        case 'aiVectorStore':
+                            return 'Vector Store';
+                        case 'aiAgent':
+                            return 'AI Agent';
+                        case 'aiChain':
+                            return 'AI Chain';
+                        case 'aiLanguageModel':
+                            return 'Language Model';
+                        case 'aiEmbedding':
+                            return 'Embeddings';
+                        default:
+                            return type;
+                    }
+                })
+                .join(', ')} nodes`,
 		},
 	};
 } 

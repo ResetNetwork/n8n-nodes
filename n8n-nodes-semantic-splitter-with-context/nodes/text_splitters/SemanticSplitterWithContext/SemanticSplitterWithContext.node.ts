@@ -1,16 +1,28 @@
 import {
 	INodeType,
 	INodeTypeDescription,
-	NodeConnectionType,
 	ISupplyDataFunctions,
 	SupplyData,
 } from 'n8n-workflow';
+
+// Define connection types as constants to match runtime behavior
+const NodeConnectionType = {
+	AiLanguageModel: 'ai_languageModel',
+	AiEmbedding: 'ai_embedding', 
+	AiTextSplitter: 'ai_textSplitter',
+} as const;
 
 import { Document } from '@langchain/core/documents';
 import { Embeddings } from '@langchain/core/embeddings';
 import { BaseLanguageModel } from '@langchain/core/language_models/base';
 import { TextSplitter } from '@langchain/textsplitters';
 import { logWrapper } from '../../utils/logWrapper';
+
+type Chunk = {
+	text: string;
+	startIdx: number; // inclusive sentence index
+	endIdx: number; // inclusive sentence index
+};
 
 // Custom implementation of Semantic Double-Pass Merging splitter with context
 class SemanticDoublePassMergingSplitterWithContext extends TextSplitter {
@@ -24,8 +36,10 @@ class SemanticDoublePassMergingSplitterWithContext extends TextSplitter {
 	private minChunkSize?: number;
 	private maxChunkSize?: number;
 	private secondPassThreshold: number;
+	private summaryPrompt: string;
 	private contextPrompt: string;
 	private includeLabels: boolean;
+	private documentSummaryCache: Map<string, string> = new Map();
 
 	constructor(
 		embeddings: Embeddings,
@@ -39,6 +53,7 @@ class SemanticDoublePassMergingSplitterWithContext extends TextSplitter {
 			minChunkSize?: number;
 			maxChunkSize?: number;
 			secondPassThreshold?: number;
+			summaryPrompt?: string;
 			contextPrompt?: string;
 			includeLabels?: boolean;
 		} = {},
@@ -50,11 +65,17 @@ class SemanticDoublePassMergingSplitterWithContext extends TextSplitter {
 		this.breakpointThresholdType = options.breakpointThresholdType ?? 'percentile';
 		this.breakpointThresholdAmount = options.breakpointThresholdAmount;
 		this.numberOfChunks = options.numberOfChunks;
-		this.sentenceSplitRegex = new RegExp(options.sentenceSplitRegex ?? '(?<=[.?!])\\s+');
+		try {
+			this.sentenceSplitRegex = new RegExp(options.sentenceSplitRegex ?? '(?<=[.?!])\\s+');
+		} catch {
+			// Fallback to default if user provided invalid regex
+			this.sentenceSplitRegex = new RegExp('(?<=[.?!])\\s+');
+		}
 		this.minChunkSize = options.minChunkSize;
 		this.maxChunkSize = options.maxChunkSize;
 		this.secondPassThreshold = options.secondPassThreshold ?? 0.8;
-		this.contextPrompt = options.contextPrompt ?? `Generate a brief contextual summary for this text chunk to enhance search retrieval, two to three short sentences max. The chunk contains merged content from different document sections, so focus on the main topics and concepts rather than the sequential flow. Answer only with the succinct context and nothing else.`;
+		this.summaryPrompt = options.summaryPrompt ?? `Summarize the following document in 5-7 sentences, focusing on the main topics and concepts that would help retrieve relevant chunks.`;
+		this.contextPrompt = options.contextPrompt ?? `Using the document summary above, generate a brief contextual description that explains what this specific chunk covers and how it relates to the overall document. Focus on the unique aspects of this chunk. Keep it to 2-3 sentences and answer only with the context.`;
 		this.includeLabels = options.includeLabels ?? false;
 	}
 
@@ -62,78 +83,94 @@ class SemanticDoublePassMergingSplitterWithContext extends TextSplitter {
 		// Handle empty or whitespace-only text
 		if (!text || text.trim().length === 0) return [];
 
-		// Split text into sentences
+		const MAX_TEXT_LENGTH = 10_000_000; // 10 MB
+		if (text.length > MAX_TEXT_LENGTH) {
+			throw new Error(
+				`Input text is too large (${text.length} characters). Maximum allowed is ${MAX_TEXT_LENGTH} characters.`,
+			);
+		}
+
+		const debugEnabled = process.env.N8N_NODES_DEBUG === '1' || process.env.N8N_NODES_DEBUG === 'true';
+		if (debugEnabled) {
+			console.log('SemanticSplitter: splitText called with text length:', text.length);
+		}
+		const { chunks } = await this._splitTextWithChunks(text);
+		if (debugEnabled) {
+			console.log('SemanticSplitter: splitText returning', chunks.length, 'chunks');
+		}
+		return chunks.map((c) => c.text);
+	}
+
+	private async _splitTextWithChunks(text: string): Promise<{ chunks: Chunk[]; sentences: string[] }> {
 		const sentences = this._splitTextIntoSentences(text);
-		if (sentences.length === 0) return [];
-		
-		// Handle single sentence case
+		if (sentences.length === 0) return { chunks: [], sentences };
+
 		if (sentences.length === 1) {
 			const singleSentence = sentences[0]!.trim();
-			if (!singleSentence) return [];
-			
-			// Apply size constraints to single sentence
+			if (!singleSentence) return { chunks: [], sentences };
 			if (this.maxChunkSize && singleSentence.length > this.maxChunkSize) {
-				// Split by words if sentence is too long
 				const words = singleSentence.split(/\s+/);
-				const chunks: string[] = [];
-				let currentChunk = '';
-				
+				const out: Chunk[] = [];
+				let current = '';
 				for (const word of words) {
-					if (currentChunk.length + word.length + 1 <= this.maxChunkSize) {
-						currentChunk = currentChunk ? currentChunk + ' ' + word : word;
+					if ((current ? current.length + 1 : 0) + word.length <= (this.maxChunkSize ?? Infinity)) {
+						current = current ? current + ' ' + word : word;
 					} else {
-						if (currentChunk) chunks.push(currentChunk);
-						currentChunk = word;
+						if (current) out.push({ text: current, startIdx: 0, endIdx: 0 });
+						current = word;
 					}
 				}
-				if (currentChunk) chunks.push(currentChunk);
-				return chunks;
+				if (current) out.push({ text: current, startIdx: 0, endIdx: 0 });
+				return { chunks: out, sentences };
 			}
-			
-			return [singleSentence];
+			return { chunks: [{ text: singleSentence, startIdx: 0, endIdx: 0 }], sentences };
 		}
 
-		// Combine sentences for embedding
 		const combinedSentences = await this._combineSentences(sentences);
-
-		// Calculate embeddings
 		const embeddings = await this._embedSentences(combinedSentences);
-
-		// Calculate distances between consecutive embeddings
 		const distances = this._calculateDistances(embeddings);
-
-		// Handle case where we have no distances (shouldn't happen with multiple sentences, but safety check)
 		if (distances.length === 0) {
-			return sentences.map(s => s.trim()).filter(s => s.length > 0);
+			const onlyChunk: Chunk = { text: sentences.join(' ').trim(), startIdx: 0, endIdx: sentences.length - 1 };
+			return { chunks: onlyChunk.text ? [onlyChunk] : [], sentences };
 		}
-
-		// Determine breakpoints based on threshold
 		const breakpoints = this._calculateBreakpoints(distances);
-
-		// Create initial chunks
 		let chunks = this._createChunks(sentences, breakpoints);
-
-		// Second pass: merge similar adjacent chunks
 		chunks = await this._secondPassMerge(chunks);
-
-		// Apply size constraints
-		chunks = this._applySizeConstraints(chunks);
-
-		return chunks;
+		chunks = this._applySizeConstraints(chunks, sentences);
+		return { chunks, sentences };
 	}
 
 	override async splitDocuments(documents: Document[]): Promise<Document[]> {
+		const debugEnabled = process.env.N8N_NODES_DEBUG === '1' || process.env.N8N_NODES_DEBUG === 'true';
+		if (debugEnabled) {
+			console.log('SemanticSplitter: splitDocuments called with', documents.length, 'documents');
+		}
 		const splitDocuments: Document[] = [];
 
 		for (const document of documents) {
+			if (debugEnabled) {
+				console.log('SemanticSplitter: Processing document with content length:', document.pageContent.length);
+			}
 			const chunks = await this.splitText(document.pageContent);
+			if (debugEnabled) {
+				console.log('SemanticSplitter: Got', chunks.length, 'chunks from splitText');
+			}
 			
-			for (const chunk of chunks) {
+			for (let i = 0; i < chunks.length; i++) {
+				const chunk = chunks[i]!;
+				if (debugEnabled) {
+					console.log(`SemanticSplitter: Processing chunk ${i + 1}/${chunks.length}, length:`, chunk.length);
+				}
+				
 				// Generate contextual description for this chunk
 				const contextualContent = await this._generateContextualContent(
 					document.pageContent,
 					chunk
 				);
+				
+				if (debugEnabled) {
+					console.log(`SemanticSplitter: Generated contextual content for chunk ${i + 1}, final length:`, contextualContent.length);
+				}
 				
 				splitDocuments.push(
 					new Document({
@@ -144,24 +181,78 @@ class SemanticDoublePassMergingSplitterWithContext extends TextSplitter {
 			}
 		}
 
+		if (debugEnabled) {
+			console.log('SemanticSplitter: splitDocuments returning', splitDocuments.length, 'documents');
+		}
 		return splitDocuments;
 	}
 
 	private async _generateContextualContent(wholeDocument: string, chunk: string): Promise<string> {
 		try {
-			// Build the full prompt with hardcoded structure
-			const fullPrompt = `<document>
-${wholeDocument}
-</document>
-Here is the chunk we want to situate within the whole document
-<chunk>
-${chunk}
-</chunk>
-${this.contextPrompt}`;
+			// Skip context generation for tiny documents that don't need summarization
+			if (wholeDocument.length < 100) {
+				return this._formatContextualOutput('', chunk);
+			}
 
-			// Generate context using the chat model
-			const response = await this.chatModel.invoke(fullPrompt);
-			const context = typeof response === 'string' ? response : response.content;
+			const documentHash = this._hashDocument(wholeDocument);
+			
+			// Generate document summary once and cache it
+			let globalSummary = this.documentSummaryCache.get(documentHash);
+			
+			if (!globalSummary) {
+				// Generate global summary for this document
+				const summaryPrompt = `${this.summaryPrompt}\n\n<document>\n${wholeDocument}\n</document>`;
+				
+				// Validate summary prompt size
+				if (summaryPrompt.length > 100_000) {
+					throw new Error(`Document too large for global summary (${summaryPrompt.length} characters). Consider using smaller documents.`);
+				}
+				
+				const summaryResponse = await this.chatModel.invoke(summaryPrompt);
+				if (typeof summaryResponse === 'string') {
+					globalSummary = summaryResponse;
+				} else if (summaryResponse && typeof (summaryResponse as any).content === 'string') {
+					globalSummary = (summaryResponse as any).content as string;
+				} else if (summaryResponse && Array.isArray((summaryResponse as any).content)) {
+					const blocks = (summaryResponse as any).content as Array<any>;
+					globalSummary = blocks
+						.map((b) => (typeof b?.text === 'string' ? b.text : typeof b === 'string' ? b : ''))
+						.filter(Boolean)
+						.join('\n');
+				}
+				
+				if (globalSummary) {
+					// Cache the summary and limit cache size
+					if (this.documentSummaryCache.size >= 5) {
+						// Clear oldest entry
+						const firstKey = this.documentSummaryCache.keys().next().value;
+						if (firstKey) this.documentSummaryCache.delete(firstKey);
+					}
+					this.documentSummaryCache.set(documentHash, globalSummary);
+				}
+			}
+			
+			// Generate chunk-specific context using global summary
+			const contextPrompt = `<document_summary>\n${globalSummary}\n</document_summary>\nHere is a specific chunk from this document:\n<chunk>\n${chunk}\n</chunk>\n\n${this.contextPrompt}`;
+			
+			// Validate prompt size
+			if (contextPrompt.length > 100_000) {
+				throw new Error(`Context prompt too large (${contextPrompt.length} characters).`);
+			}
+			
+			const response = await this.chatModel.invoke(contextPrompt);
+			let context: string = '';
+			if (typeof response === 'string') {
+				context = response;
+			} else if (response && typeof (response as any).content === 'string') {
+				context = (response as any).content as string;
+			} else if (response && Array.isArray((response as any).content)) {
+				const blocks = (response as any).content as Array<any>;
+				context = blocks
+					.map((b) => (typeof b?.text === 'string' ? b.text : typeof b === 'string' ? b : ''))
+					.filter(Boolean)
+					.join('\n');
+			}
 			
 			// Combine context and chunk with selected format
 			return this._formatContextualOutput(context, chunk);
@@ -171,6 +262,18 @@ ${this.contextPrompt}`;
 			return chunk;
 		}
 	}
+
+	private _hashDocument(document: string): string {
+		// Simple hash function for document caching
+		let hash = 0;
+		for (let i = 0; i < document.length; i++) {
+			const char = document.charCodeAt(i);
+			hash = ((hash << 5) - hash) + char;
+			hash = hash & hash; // Convert to 32-bit integer
+		}
+		return hash.toString();
+	}
+
 
 	private _formatContextualOutput(context: string, chunk: string): string {
 		if (this.includeLabels) {
@@ -239,6 +342,10 @@ ${this.contextPrompt}`;
 			const sortedDistances = [...distances].sort((a, b) => b - a);
 			const index = Math.min(this.numberOfChunks - 1, sortedDistances.length - 1);
 			threshold = sortedDistances[index]!;
+			const debugEnabled = process.env.N8N_NODES_DEBUG === '1' || process.env.N8N_NODES_DEBUG === 'true';
+			if (debugEnabled) {
+				console.log(`SemanticSplitter: numberOfChunks=${this.numberOfChunks}, distances.length=${distances.length}, sortedDistances=${sortedDistances.slice(0,5)}, using threshold=${threshold}`);
+			}
 		} else if (this.breakpointThresholdAmount !== undefined) {
 			threshold = this.breakpointThresholdAmount;
 		} else {
@@ -300,41 +407,45 @@ ${this.contextPrompt}`;
 				breakpoints.push(i + 1);
 			}
 		}
-
+		
+		const debugEnabled = process.env.N8N_NODES_DEBUG === '1' || process.env.N8N_NODES_DEBUG === 'true';
+		if (debugEnabled) {
+			console.log(`SemanticSplitter: Found ${breakpoints.length} breakpoints:`, breakpoints);
+		}
 		return breakpoints;
 	}
 
-	private _createChunks(sentences: string[], breakpoints: number[]): string[] {
-		const chunks: string[] = [];
+	private _createChunks(sentences: string[], breakpoints: number[]): Chunk[] {
+		const chunks: Chunk[] = [];
 		let start = 0;
 
 		for (const breakpoint of breakpoints) {
-			const chunk = sentences.slice(start, breakpoint).join(' ');
-			if (chunk.trim()) {
-				chunks.push(chunk.trim());
+			const text = sentences.slice(start, breakpoint).join(' ');
+			if (text.trim()) {
+				chunks.push({ text: text.trim(), startIdx: start, endIdx: breakpoint - 1 });
 			}
 			start = breakpoint;
 		}
 
 		// Add the last chunk
 		if (start < sentences.length) {
-			const chunk = sentences.slice(start).join(' ');
-			if (chunk.trim()) {
-				chunks.push(chunk.trim());
+			const text = sentences.slice(start).join(' ');
+			if (text.trim()) {
+				chunks.push({ text: text.trim(), startIdx: start, endIdx: sentences.length - 1 });
 			}
 		}
 
 		return chunks;
 	}
 
-	private async _secondPassMerge(chunks: string[]): Promise<string[]> {
+	private async _secondPassMerge(chunks: Chunk[]): Promise<Chunk[]> {
 		if (chunks.length <= 1) return chunks;
 
 		// Get embeddings for all chunks
-		const chunkEmbeddings = await this.embeddings.embedDocuments(chunks);
+		const chunkEmbeddings = await this.embeddings.embedDocuments(chunks.map((c) => c.text));
 
 		// Calculate similarities between adjacent chunks
-		const mergedChunks: string[] = [];
+		const mergedChunks: Chunk[] = [];
 		let currentChunk = chunks[0]!;
 		let currentEmbedding = chunkEmbeddings[0]!;
 		let needsEmbeddingUpdate = false;
@@ -344,12 +455,16 @@ ${this.contextPrompt}`;
 
 			if (similarity >= this.secondPassThreshold) {
 				// Merge chunks
-				currentChunk = currentChunk + ' ' + chunks[i];
+				currentChunk = {
+					text: currentChunk.text + ' ' + chunks[i]!.text,
+					startIdx: currentChunk.startIdx,
+					endIdx: chunks[i]!.endIdx,
+				};
 				needsEmbeddingUpdate = true;
 			} else {
 				// If we merged chunks, recalculate embedding for the final merged chunk
 				if (needsEmbeddingUpdate) {
-					const [newEmbedding] = await this.embeddings.embedDocuments([currentChunk]);
+					const [newEmbedding] = await this.embeddings.embedDocuments([currentChunk.text]);
 					currentEmbedding = newEmbedding!;
 					needsEmbeddingUpdate = false;
 				}
@@ -363,7 +478,7 @@ ${this.contextPrompt}`;
 
 		// Add the last chunk (recalculate embedding if needed)
 		if (needsEmbeddingUpdate) {
-			const [newEmbedding] = await this.embeddings.embedDocuments([currentChunk]);
+			const [newEmbedding] = await this.embeddings.embedDocuments([currentChunk.text]);
 			currentEmbedding = newEmbedding!;
 		}
 		mergedChunks.push(currentChunk);
@@ -371,109 +486,72 @@ ${this.contextPrompt}`;
 		return mergedChunks;
 	}
 
-	private _applySizeConstraints(chunks: string[]): string[] {
+	private _applySizeConstraints(chunks: Chunk[], sentences: string[]): Chunk[] {
 		if (!this.minChunkSize && !this.maxChunkSize) return chunks;
 
-		const constrainedChunks: string[] = [];
-		let currentChunk = '';
-
+		const splitLarge: Chunk[] = [];
 		for (const chunk of chunks) {
-			const chunkLength = chunk.length;
-
-			if (this.maxChunkSize && chunkLength > this.maxChunkSize) {
-				// Split large chunks
-				const sentences = this._splitTextIntoSentences(chunk);
-				let tempChunk = '';
-
-				for (const sentence of sentences) {
-					if (tempChunk.length + sentence.length + 1 <= this.maxChunkSize) {
-						tempChunk = tempChunk ? tempChunk + ' ' + sentence : sentence;
+			if (this.maxChunkSize && chunk.text.length > this.maxChunkSize) {
+				let acc = '';
+				let start = chunk.startIdx;
+				for (let i = chunk.startIdx; i <= chunk.endIdx; i++) {
+					const sentence = sentences[i]!;
+					const nextLen = (acc ? acc.length + 1 : 0) + sentence.length;
+					if (nextLen <= this.maxChunkSize!) {
+						acc = acc ? acc + ' ' + sentence : sentence;
 					} else {
-						// Save current tempChunk if it meets minimum size
-						if (tempChunk && (!this.minChunkSize || tempChunk.length >= this.minChunkSize)) {
-							constrainedChunks.push(tempChunk);
-							tempChunk = sentence;
-						} else {
-							// tempChunk is too small, merge with currentChunk or start new sentence
-							if (currentChunk) {
-								currentChunk = currentChunk + ' ' + tempChunk + ' ' + sentence;
-							} else {
-								tempChunk = tempChunk ? tempChunk + ' ' + sentence : sentence;
-							}
-						}
+						if (acc) splitLarge.push({ text: acc, startIdx: start, endIdx: i - 1 });
+						acc = sentence;
+						start = i;
 					}
 				}
-
-				// Handle remaining tempChunk
-				if (tempChunk) {
-					if (!this.minChunkSize || tempChunk.length >= this.minChunkSize) {
-						constrainedChunks.push(tempChunk);
-					} else {
-						// tempChunk is too small, add to currentChunk
-						if (currentChunk) {
-							currentChunk = currentChunk + ' ' + tempChunk;
-						} else {
-							currentChunk = tempChunk;
-						}
-					}
-				}
-			} else if (this.minChunkSize && chunkLength < this.minChunkSize) {
-				// Merge small chunks
-				if (currentChunk) {
-					currentChunk = currentChunk + ' ' + chunk;
-				} else {
-					currentChunk = chunk;
-				}
-
-				if (currentChunk.length >= this.minChunkSize) {
-					constrainedChunks.push(currentChunk);
-					currentChunk = '';
-				}
+				if (acc) splitLarge.push({ text: acc, startIdx: start, endIdx: chunk.endIdx });
 			} else {
-				// Chunk is within acceptable size range
-				if (currentChunk) {
-					// Check if we should merge currentChunk with this chunk
-					if (!this.minChunkSize || currentChunk.length >= this.minChunkSize) {
-						constrainedChunks.push(currentChunk);
-						currentChunk = '';
-						constrainedChunks.push(chunk);
-					} else {
-						// currentChunk is too small, merge with this chunk
-						currentChunk = currentChunk + ' ' + chunk;
-						if (currentChunk.length >= this.minChunkSize) {
-							constrainedChunks.push(currentChunk);
-							currentChunk = '';
-						}
-					}
-				} else {
-					constrainedChunks.push(chunk);
-				}
+				splitLarge.push(chunk);
 			}
 		}
 
-		// Handle any remaining currentChunk
-		if (currentChunk) {
-			if (!this.minChunkSize || currentChunk.length >= this.minChunkSize) {
-				constrainedChunks.push(currentChunk);
+		if (!this.minChunkSize) return splitLarge;
+
+		const mergedSmall: Chunk[] = [];
+		let current: Chunk | null = null;
+		for (const chunk of splitLarge) {
+			if (!current) {
+				current = { ...chunk };
+				continue;
+			}
+			if (current.text.length < this.minChunkSize!) {
+				current = {
+					text: current.text + ' ' + chunk.text,
+					startIdx: current.startIdx,
+					endIdx: chunk.endIdx,
+				};
 			} else {
-				// currentChunk is too small, try to merge with last chunk if possible
-				if (constrainedChunks.length > 0) {
-					const lastChunk = constrainedChunks.pop()!;
-					const mergedChunk = lastChunk + ' ' + currentChunk;
-					constrainedChunks.push(mergedChunk);
-				} else {
-					// No chunks to merge with, but we have content - add it anyway to avoid losing data
-					// This is a rare edge case where all content is smaller than minChunkSize
-					constrainedChunks.push(currentChunk);
-				}
+				mergedSmall.push(current);
+				current = { ...chunk };
+			}
+		}
+		if (current) {
+			if (current.text.length < this.minChunkSize! && mergedSmall.length > 0) {
+				const last = mergedSmall.pop()!;
+				mergedSmall.push({
+					text: last.text + ' ' + current.text,
+					startIdx: last.startIdx,
+					endIdx: current.endIdx,
+				});
+			} else {
+				mergedSmall.push(current);
 			}
 		}
 
-		return constrainedChunks;
+		return mergedSmall;
 	}
 }
 
 export class SemanticSplitterWithContext implements INodeType {
+	// Static cache to prevent memory leaks from repeated instance creation
+	private static splitterCache = new Map<string, SemanticDoublePassMergingSplitterWithContext>();
+	
 	description: INodeTypeDescription = {
 		displayName: 'Semantic Splitter with Context',
 		name: 'contextualSemanticTextSplitterWithContext',
@@ -520,14 +598,24 @@ export class SemanticSplitterWithContext implements INodeType {
 		],
 		properties: [
 			{
+				displayName: 'Summary Prompt',
+				name: 'summaryPrompt',
+				type: 'string',
+				typeOptions: {
+					rows: 3,
+				},
+				default: 'Summarize the following document in 5-7 sentences, focusing on the main topics and concepts that would help retrieve relevant chunks.',
+				description: 'Instructions for generating the global document summary. The full document will be automatically provided.',
+			},
+			{
 				displayName: 'Context Prompt',
 				name: 'contextPrompt',
 				type: 'string',
 				typeOptions: {
 					rows: 4,
 				},
-				default: `Please generate a short succinct context summary to situate this text chunk within the overall document to enhance search retrieval, two or three sentances max. The chunk contains merged content from different document sections, so focus on the main topics and concepts rather than sequential flow. Answer only with the succinct context and nothing else.`,
-				description: 'Instructions for the AI model on how to generate contextual descriptions. The document and chunk will be automatically provided in the prompt structure.',
+				default: 'Using the document summary above, generate a brief contextual description that explains what this specific chunk covers and how it relates to the overall document. Focus on the unique aspects of this chunk. Keep it to 2-3 sentences and answer only with the context.',
+				description: 'Instructions for generating chunk-specific context using the document summary and chunk. The summary and chunk will be automatically provided.',
 			},
 			{
 				displayName: 'Include Labels in Output',
@@ -641,7 +729,10 @@ export class SemanticSplitterWithContext implements INodeType {
 	};
 
 	async supplyData(this: ISupplyDataFunctions, itemIndex: number): Promise<SupplyData> {
-		console.log('ContextualSemanticSplitter: supplyData called!');
+		const debugEnabled = process.env.N8N_NODES_DEBUG === '1' || process.env.N8N_NODES_DEBUG === 'true';
+		if (debugEnabled) {
+			console.log('ContextualSemanticSplitter: supplyData called!');
+		}
 		
 		const chatModel = (await this.getInputConnectionData(
 			NodeConnectionType.AiLanguageModel,
@@ -653,6 +744,7 @@ export class SemanticSplitterWithContext implements INodeType {
 			itemIndex,
 		)) as Embeddings;
 
+		const summaryPrompt = this.getNodeParameter('summaryPrompt', itemIndex, '') as string;
 		const contextPrompt = this.getNodeParameter('contextPrompt', itemIndex, '') as string;
 		const includeLabels = this.getNodeParameter('includeLabels', itemIndex, false) as boolean;
 
@@ -667,7 +759,8 @@ export class SemanticSplitterWithContext implements INodeType {
 			sentenceSplitRegex?: string;
 		};
 
-		const splitter = new SemanticDoublePassMergingSplitterWithContext(embeddings, chatModel, {
+		// Create cache key based on configuration to prevent memory leaks
+		const cacheKey = JSON.stringify({
 			bufferSize: options.bufferSize,
 			breakpointThresholdType: options.breakpointThresholdType,
 			breakpointThresholdAmount: options.breakpointThresholdAmount,
@@ -676,14 +769,47 @@ export class SemanticSplitterWithContext implements INodeType {
 			minChunkSize: options.minChunkSize,
 			maxChunkSize: options.maxChunkSize,
 			sentenceSplitRegex: options.sentenceSplitRegex,
+			summaryPrompt,
 			contextPrompt,
 			includeLabels,
 		});
 
+		// Use cached instance if available to prevent memory leaks on retries
+		let splitter = SemanticSplitterWithContext.splitterCache.get(cacheKey);
+		if (!splitter) {
+			splitter = new SemanticDoublePassMergingSplitterWithContext(embeddings, chatModel, {
+				bufferSize: options.bufferSize,
+				breakpointThresholdType: options.breakpointThresholdType,
+				breakpointThresholdAmount: options.breakpointThresholdAmount,
+				numberOfChunks: options.numberOfChunks,
+				secondPassThreshold: options.secondPassThreshold,
+				minChunkSize: options.minChunkSize,
+				maxChunkSize: options.maxChunkSize,
+				sentenceSplitRegex: options.sentenceSplitRegex,
+				summaryPrompt,
+				contextPrompt,
+				includeLabels,
+			});
+			
+			// Cache the instance but limit cache size to prevent unbounded growth
+			if (SemanticSplitterWithContext.splitterCache.size >= 10) {
+				// Clear oldest entry when cache is full
+				const firstKey = SemanticSplitterWithContext.splitterCache.keys().next().value;
+				if (firstKey) {
+					SemanticSplitterWithContext.splitterCache.delete(firstKey);
+				}
+			}
+			SemanticSplitterWithContext.splitterCache.set(cacheKey, splitter);
+		}
+
 		// Return the splitter instance wrapped with logging for visual feedback
-		console.log('ContextualSemanticSplitter: About to wrap splitter with logWrapper');
+		if (debugEnabled) {
+			console.log('ContextualSemanticSplitter: About to wrap splitter with logWrapper');
+		}
 		const wrappedSplitter = logWrapper(splitter, this);
-		console.log('ContextualSemanticSplitter: Wrapped splitter created');
+		if (debugEnabled) {
+			console.log('ContextualSemanticSplitter: Wrapped splitter created');
+		}
 		
 		return {
 			response: wrappedSplitter,

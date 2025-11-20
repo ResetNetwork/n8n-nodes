@@ -1,10 +1,10 @@
-import { ISupplyDataFunctions, NodeConnectionType, NodeOperationError } from 'n8n-workflow';
+import { ISupplyDataFunctions, NodeOperationError } from 'n8n-workflow';
 
 async function callMethodAsync<T>(
 	this: T,
 	parameters: {
 		executeFunctions: ISupplyDataFunctions;
-		connectionType: NodeConnectionType;
+		connectionType: string;
 		currentNodeRunIndex: number;
 		method: (...args: any[]) => Promise<unknown>;
 		arguments: unknown[];
@@ -47,7 +47,7 @@ export function logWrapper<T extends object>(originalInstance: T, executeFunctio
 				if (prop === 'embedDocuments' && 'embedDocuments' in target) {
 					return async (documents: string[]): Promise<number[][]> => {
 						console.log('EmbeddingsLogWrapper: embedDocuments intercepted, docs:', documents?.length || 0);
-						const connectionType = NodeConnectionType.AiEmbedding;
+						const connectionType = 'ai_embedding' as any;
 
 						// Log input data
 						const { index } = executeFunctions.addInputData(connectionType, [
@@ -63,7 +63,10 @@ export function logWrapper<T extends object>(originalInstance: T, executeFunctio
 							arguments: [documents],
 						})) as number[][];
 
-						console.log('EmbeddingsLogWrapper: embedDocuments completed, embeddings:', response?.length || 0);
+						console.log('EmbeddingsLogWrapper: embedDocuments completed, embeddings count:', response?.length || 0);
+						if (response && response.length > 0) {
+							console.log('EmbeddingsLogWrapper: First embedding dimensions:', response[0]?.length || 0);
+						}
 
 						// Log AI event
 						logAiEvent(executeFunctions, 'ai-document-embedded');
@@ -80,7 +83,7 @@ export function logWrapper<T extends object>(originalInstance: T, executeFunctio
 				if (prop === 'embedQuery' && 'embedQuery' in target) {
 					return async (query: string): Promise<number[]> => {
 						console.log('EmbeddingsLogWrapper: embedQuery intercepted, query length:', query?.length || 0);
-						const connectionType = NodeConnectionType.AiEmbedding;
+						const connectionType = 'ai_embedding' as any;
 
 						// Log input data
 						const { index } = executeFunctions.addInputData(connectionType, [
@@ -96,7 +99,7 @@ export function logWrapper<T extends object>(originalInstance: T, executeFunctio
 							arguments: [query],
 						})) as number[];
 
-						console.log('EmbeddingsLogWrapper: embedQuery completed, embedding dimension:', response?.length || 0);
+						console.log('EmbeddingsLogWrapper: embedQuery completed, embedding dimensions:', response?.length || 0);
 
 						// Log AI event
 						logAiEvent(executeFunctions, 'ai-query-embedded');

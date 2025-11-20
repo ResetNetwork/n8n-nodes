@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-google-gemini-embeddings-extended",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "n8n community sub-node for Google Gemini Embeddings with extended features like output dimensions support",
   "keywords": [
     "n8n-community-node-package",
@@ -34,9 +34,9 @@
     "build": "tsc && mkdir -p dist/nodes/embeddings/EmbeddingsGoogleGeminiExtended && cp nodes/utils/noun-embedded-6256003.svg dist/nodes/embeddings/EmbeddingsGoogleGeminiExtended/ 2>/dev/null || true",
     "dev": "tsc --watch",
     "format": "prettier nodes --write",
-    "lint": "eslint nodes --ext .ts",
-    "lintfix": "eslint nodes --ext .ts --fix",
-    "prepublishOnly": "npm run build && npm run lint -c .eslintrc.prepublish.json nodes"
+    "lint": "eslint nodes",
+    "lintfix": "eslint nodes --fix",
+    "prepublishOnly": "npm run build && npm run lint"
   },
   "files": [
     "dist"
@@ -58,7 +58,10 @@
     "typescript": "^5.3.3"
   },
   "peerDependencies": {
-    "n8n-workflow": "^1.25.1",
-    "@langchain/google-genai": "*"
+    "@google/genai": "^1.25.0",
+    "n8n-workflow": "^1.25.1"
+  },
+  "dependencies": {
+    "@langchain/core": "^1.0.1"
   }
 }

@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-semantic-splitter-with-context",
-  "version": "0.4.0",
+  "version": "0.6.2",
   "description": "Semantic Splitter with Context for n8n with LangChain integration",
   "keywords": [
     "n8n-community-node-package",
@@ -47,24 +47,25 @@
     ]
   },
   "devDependencies": {
-    "@eslint/js": "^9.28.0",
-    "@types/node": "^22.15.30",
-    "@typescript-eslint/eslint-plugin": "^8.33.1",
-    "@typescript-eslint/parser": "^8.33.1",
-    "eslint": "^9.28.0",
+    "@eslint/js": "^9.29.0",
+    "@langchain/core": "*",
+    "@langchain/google-genai": "^0.2.18",
+    "@langchain/textsplitters": "*",
+    "@types/node": "^22.18.11",
+    "@typescript-eslint/eslint-plugin": "^8.34.1",
+    "@typescript-eslint/parser": "^8.34.1",
+    "eslint": "^9.29.0",
     "eslint-plugin-n8n-nodes-base": "^1.16.0",
     "globals": "^16.2.0",
-    "gulp": "^5.0.0",
+    "gulp": "^4.0.2",
     "n8n-workflow": "*",
     "prettier": "^3.2.5",
-    "typescript": "^5.3.3",
-    "@langchain/core": "*",
-    "@langchain/textsplitters": "*"
+    "typescript": "^5.3.3"
   },
   "peerDependencies": {
-    "n8n-workflow": "^1.25.1",
     "@langchain/core": "*",
-    "@langchain/textsplitters": "*"
+    "@langchain/textsplitters": "*",
+    "n8n-workflow": "^1.25.1"
   },
   "engines": {
     "node": ">=18.0.0"

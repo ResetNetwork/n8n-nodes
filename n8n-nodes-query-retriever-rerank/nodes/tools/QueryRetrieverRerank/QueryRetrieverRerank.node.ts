@@ -3,8 +3,17 @@ import {
 	INodeType,
 	INodeTypeDescription,
 	SupplyData,
-	NodeConnectionType,
 } from 'n8n-workflow';
+
+// Define connection types as constants to match runtime behavior
+const NodeConnectionType = {
+	AiVectorStore: 'ai_vectorStore',
+	AiLanguageModel: 'ai_languageModel',
+	AiEmbedding: 'ai_embedding',
+	AiMemory: 'ai_memory',
+	AiTool: 'ai_tool',
+	AiAgent: 'ai_agent',
+} as const;
 
 import { DynamicTool } from '@langchain/core/tools';
 import type { BaseLanguageModel } from '@langchain/core/language_models/base';
