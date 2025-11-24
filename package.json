@@ -63,13 +63,14 @@
   },
   "packageManager": "pnpm@9.15.9",
   "engines": {
-    "node": ">=18.0.0",
+    "node": ">=20.19 <= 24.x",
     "npm": ">=8.0.0",
     "pnpm": ">=9.0.0"
   },
   "pnpm": {
     "overrides": {
-      "@langchain/community": ">=0.3.3"
+      "@langchain/community": ">=0.3.3",
+      "form-data": "^4.0.4"
     }
   },
   "devDependencies": {
