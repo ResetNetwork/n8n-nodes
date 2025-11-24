@@ -10,17 +10,17 @@ import { connectMcpClient, getAllTools, getAuthHeaders, mergeCustomHeaders, tryR
 export async function getTools(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
 	const authentication = this.getNodeParameter('authentication') as McpAuthenticationOption;
 	const node = this.getNode();
-	
+
 	const serverTransport = this.getNodeParameter('serverTransport') as McpServerTransport;
 	const endpointUrl = this.getNodeParameter('endpointUrl') as string;
-	
+
 	const { headers: authHeaders } = await getAuthHeaders(this, authentication);
-	
+
 	// Get custom headers from fixedCollection
 	const customHeadersData = this.getNodeParameter('options.customHeaders', {}) as {
 		values?: Array<{ name: string; value: string }>;
 	};
-	
+
 	// Convert array format to object for header merging
 	let customHeaders: Record<string, string> | undefined;
 	if (customHeadersData?.values && Array.isArray(customHeadersData.values)) {
@@ -31,10 +31,10 @@ export async function getTools(this: ILoadOptionsFunctions): Promise<INodeProper
 			return acc;
 		}, {} as Record<string, string>);
 	}
-	
+
 	// Merge custom headers with auth headers
 	const headers = mergeCustomHeaders(authHeaders, customHeaders);
-	
+
 	const client = await connectMcpClient({
 		serverTransport,
 		endpointUrl,

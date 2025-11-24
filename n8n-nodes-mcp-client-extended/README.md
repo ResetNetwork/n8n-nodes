@@ -5,11 +5,12 @@
 ## Features
 
 - **✨ Custom Headers**: Pass custom headers as dynamic expressions at runtime
+- **🎯 Dynamic Tool Filtering**: Control which tools are available based on workflow data with rule-based filtering
 - **🔧 Full MCP Support**: All features from the built-in MCP Client Tool
 - **🔐 Multiple Authentication Methods**: Bearer, Header, OAuth2, Multiple Headers
-- **🎯 Dynamic Tool Loading**: Select specific tools or exclude unwanted ones
+- **📋 Smart Tool Selection**: Select specific tools or exclude unwanted ones
 - **🌐 SSE & HTTP Streamable**: Support for both transport methods
-- **🚀 All 24 Tools Available**: Works seamlessly with AI Agents
+- **🚀 Seamless Integration**: Works seamlessly with AI Agents
 
 ## Installation
 
@@ -26,23 +27,58 @@ npm install n8n-nodes-mcp-client-extended
 
 ## Usage
 
+### Dynamic Tool Filtering
+
+Control which tools are available to the AI Agent based on workflow data using rule-based filtering:
+
+1. Click **"Add Tool Filtering"** to enable dynamic filtering
+2. Set **Default Behavior**: What to do when no rule matches
+3. Add **Evaluation Expression**: Expression that returns a value to match against rules
+   - Example: `{{ $json.team }}` or `{{ $json.role }}`
+4. Add **Tool Access Rules**: Define which tools to expose for different values
+   - **Match Values**: Comma-separated values to match (e.g., `dev,ext-dev,admin`)
+   - **Rule Action**: Include Specific Tools, Include All Tools, or Exclude All Tools
+   - **Tools**: Select specific tools when using "Include Specific Tools"
+
+#### Example: Team-Based Access Control
+
+```
+Evaluation Expression: {{ $json.team }}
+
+Rule 1:
+  Match Values: dev,ext-dev
+  Action: Include Specific Tools
+  Tools: search_code, read_file, write_file
+
+Rule 2:
+  Match Values: admin
+  Action: Include All Tools
+
+Rule 3:
+  Match Values: guest
+  Action: Exclude All Tools
+
+Default Behavior: Use Base Mode Filter
+```
+
+**Result:**
+- `{ team: "dev" }` → Gets search_code, read_file, write_file
+- `{ team: "admin" }` → Gets all tools
+- `{ team: "guest" }` → Gets no tools
+- `{ team: "other" }` → Falls back to base mode (Tools to Include setting)
+
 ### Custom Headers
 
 The extended node adds a "Custom Headers" option in the Options collection:
 
-1. Enable "Enable Custom Headers"
-2. Add headers as JSON in the "Custom Headers" field
+1. Add headers using the "Add Header" button
+2. Specify header name and value
 3. Use expressions for dynamic values
 
-Example:
-
-```json
-{
-  "X-Request-ID": "{{ $json.requestId }}",
-  "X-User-Context": "{{ $json.userId }}",
-  "X-Custom-Header": "static-value"
-}
-```
+Example headers:
+- Name: `X-Request-ID`, Value: `{{ $json.requestId }}`
+- Name: `X-User-Context`, Value: `{{ $json.userId }}`
+- Name: `X-Custom-Header`, Value: `static-value`
 
 ### Authentication
 
@@ -81,6 +117,8 @@ The "Execute step" testing/debugging button is currently disabled (`usableAsTool
 
 ## Roadmap
 
+- [x] Dynamic tool filtering with rule-based access control
+- [x] Custom headers support with expressions
 - [ ] Fix Execute step button to enable direct tool testing
 - [ ] Add support for tool input validation
 - [ ] Enhance error messages for custom header issues

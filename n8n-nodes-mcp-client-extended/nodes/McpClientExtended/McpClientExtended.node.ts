@@ -20,6 +20,7 @@ import {
 	connectMcpClient,
 	createCallTool,
 	createMcpToolkit,
+	evaluateToolRules,
 	getAllTools,
 	getAuthHeaders,
 	getSelectedTools,
@@ -43,6 +44,14 @@ function getNodeConfig(
 	includeTools: string[];
 	excludeTools: string[];
 	customHeaders?: IDataObject;
+	enableDynamicFiltering: boolean;
+	evaluationExpression: string;
+	toolAccessRules: Array<{
+		matchValues: string;
+		ruleAction: 'includeSpecific' | 'includeAll' | 'excludeAll';
+		tools?: string[];
+	}>;
+	defaultBehavior: 'useBaseMode' | 'excludeAll';
 } {
 	const authentication = ctx.getNodeParameter(
 		'authentication',
@@ -73,6 +82,28 @@ function getNodeConfig(
 		}, {} as IDataObject);
 	}
 
+	// Get dynamic filtering parameters
+	const toolFilteringConfig = ctx.getNodeParameter(
+		'toolFiltering.config',
+		itemIndex,
+		null,
+	) as {
+		defaultBehavior: 'useBaseMode' | 'excludeAll';
+		evaluationExpression: string;
+		toolAccessRules: {
+			rules: Array<{
+				matchValues: string;
+				ruleAction: 'includeSpecific' | 'includeAll' | 'excludeAll';
+				tools?: string[];
+			}>;
+		};
+	} | null;
+
+	const enableDynamicFiltering = toolFilteringConfig !== null;
+	const evaluationExpression = toolFilteringConfig?.evaluationExpression || '';
+	const toolAccessRulesData = toolFilteringConfig?.toolAccessRules?.rules || [];
+	const defaultBehavior = toolFilteringConfig?.defaultBehavior || 'useBaseMode';
+
 	return {
 		authentication,
 		timeout,
@@ -82,6 +113,10 @@ function getNodeConfig(
 		includeTools,
 		excludeTools,
 		customHeaders,
+		enableDynamicFiltering,
+		evaluationExpression,
+		toolAccessRules: toolAccessRulesData,
+		defaultBehavior,
 	};
 }
 
@@ -295,6 +330,117 @@ export class McpClientExtended implements INodeType {
 					},
 				},
 			},
+		{
+			displayName: 'Tool Filtering',
+			name: 'toolFiltering',
+			type: 'fixedCollection',
+			typeOptions: {
+				multipleValues: false,
+			},
+			default: {},
+			placeholder: 'Add Tool Filtering',
+			description: 'Configure dynamic tool filtering based on workflow data',
+			options: [
+				{
+					displayName: 'Configuration',
+					name: 'config',
+					values: [
+						{
+							displayName: 'Default Behavior',
+							name: 'defaultBehavior',
+							type: 'options',
+							default: 'useBaseMode',
+							options: [
+								{
+									name: 'Use Base Mode Filter',
+									value: 'useBaseMode',
+									description: 'Use the "Tools to Include" mode when no rule matches',
+								},
+								{
+									name: 'Exclude All Tools',
+									value: 'excludeAll',
+									description: 'Expose no tools when no rule matches',
+								},
+							],
+							description: 'What to do when no rule matches the evaluation expression',
+						},
+						{
+							displayName: 'Evaluation Expression',
+							name: 'evaluationExpression',
+							type: 'string',
+							default: '',
+							placeholder: "e.g. {{ $('PreviousNode').item.json.team }}",
+							description: 'Expression that returns the value to evaluate against rules. Reference other nodes in the workflow.',
+						},
+						{
+							displayName: 'Tool Access Rules',
+							name: 'toolAccessRules',
+							type: 'fixedCollection',
+							typeOptions: {
+								multipleValues: true,
+							},
+							default: {},
+							placeholder: 'Add Rule',
+							description: 'Rules evaluated against the expression value. First matching rule wins.',
+							options: [
+								{
+									displayName: 'Rule',
+									name: 'rules',
+									values: [
+										{
+											displayName: 'Match Values',
+											name: 'matchValues',
+											type: 'string',
+											default: '',
+											placeholder: 'dev,ext-dev,admin',
+											description: 'Comma-separated values to match. Leave empty to match any value (catch-all rule).',
+										},
+										{
+											displayName: 'Rule Action',
+											name: 'ruleAction',
+											type: 'options',
+											default: 'includeSpecific',
+											options: [
+												{
+													name: 'Include Specific Tools',
+													value: 'includeSpecific',
+													description: 'Expose only the tools listed below',
+												},
+												{
+													name: 'Include All Tools',
+													value: 'includeAll',
+													description: 'Expose all tools (after base mode filtering)',
+												},
+												{
+													name: 'Exclude All Tools',
+													value: 'excludeAll',
+													description: 'Expose no tools',
+												},
+											],
+										},
+										{
+											displayName: 'Tools',
+											name: 'tools',
+											type: 'multiOptions',
+											default: [],
+											typeOptions: {
+												loadOptionsMethod: 'getTools',
+											},
+											displayOptions: {
+												show: {
+													ruleAction: ['includeSpecific'],
+												},
+											},
+											description: 'Tools to expose when this rule matches',
+										},
+									],
+								},
+							],
+						},
+					],
+				},
+			],
+		},
 			{
 				displayName: 'Options',
 				name: 'options',
@@ -390,9 +536,36 @@ export class McpClientExtended implements INodeType {
 			);
 		}
 
+		// Apply dynamic filtering if enabled
+		let finalTools = mcpTools;
+
+		if (config.enableDynamicFiltering) {
+			const evaluatedValue = config.evaluationExpression;
+
+			this.logger.debug(
+				`McpClientExtended: Evaluating dynamic filtering rules with value: "${evaluatedValue}"`,
+			);
+
+			finalTools = evaluateToolRules({
+				evaluatedValue,
+				rules: config.toolAccessRules,
+				baseFilteredTools: mcpTools,
+				defaultBehavior: config.defaultBehavior,
+			});
+
+			this.logger.debug(
+				`McpClientExtended: After dynamic filtering: ${finalTools.length} of ${mcpTools.length} tools available`,
+			);
+		}
+
+		if (!finalTools.length) {
+			this.logger.debug('McpClientExtended: No tools available after filtering');
+			return { response: [], closeFunction: async () => await client.close() };
+		}
+
 		// Create tools array with logWrapper for proper logging
 		const tools = await Promise.all(
-			mcpTools.map(async (tool) =>
+			finalTools.map(async (tool) =>
 				logWrapper(
 					await mcpToolToDynamicTool(
 						tool,

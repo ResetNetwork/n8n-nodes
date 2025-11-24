@@ -79,6 +79,66 @@ export function getSelectedTools({
 	}
 }
 
+/**
+ * Evaluate dynamic tool access rules based on an evaluated expression value
+ * Rules are evaluated in order - first matching rule wins
+ */
+export function evaluateToolRules({
+	evaluatedValue,
+	rules,
+	baseFilteredTools,
+	defaultBehavior,
+}: {
+	evaluatedValue: string;
+	rules: Array<{
+		matchValues: string;
+		ruleAction: 'includeSpecific' | 'includeAll' | 'excludeAll';
+		tools?: string[];
+	}>;
+	baseFilteredTools: McpTool[];
+	defaultBehavior: 'useBaseMode' | 'excludeAll';
+}): McpTool[] {
+	// Evaluate rules in order - first match wins
+	for (const rule of rules) {
+		// Parse match values
+		const matchValues = rule.matchValues
+			.split(',')
+			.map((v) => v.trim())
+			.filter((v) => v.length > 0);
+
+		// Check if rule matches
+		// Empty matchValues = catch-all rule (matches any value)
+		const matches =
+			matchValues.length === 0 || matchValues.includes(String(evaluatedValue).trim());
+
+		if (matches) {
+			switch (rule.ruleAction) {
+				case 'includeAll':
+					return baseFilteredTools; // Return all tools after base mode filter
+
+				case 'excludeAll':
+					return []; // Return no tools
+
+				case 'includeSpecific':
+					if (!rule.tools?.length) return baseFilteredTools;
+					const allowedTools = new Set(rule.tools);
+					return baseFilteredTools.filter((tool) => allowedTools.has(tool.name));
+
+				default:
+					return baseFilteredTools;
+			}
+		}
+	}
+
+	// No rule matched - use default behavior
+	if (defaultBehavior === 'excludeAll') {
+		return [];
+	}
+
+	// Use base mode filter
+	return baseFilteredTools;
+}
+
 export const getErrorDescriptionFromToolCall = (result: unknown): string | undefined => {
 	if (result && typeof result === 'object') {
 		if ('content' in result && Array.isArray(result.content)) {
